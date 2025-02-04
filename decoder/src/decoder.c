@@ -269,10 +269,26 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
 
     uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
-    uint8_t key[KEY_SIZE] = {
-    0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
-    0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
-    }; // EXAMPLE HARD CODED KEY - NEED TO CHANGE THIS!!!!
+    uint8_t key[KEY_SIZE];  // Array to store the key
+
+    // Open the file containing the secret key
+    FILE *file = fopen("/global.secrets", "rb");  // Open the file in binary mode
+    if (file == NULL) {
+        perror("Failed to open file");
+        return EXIT_FAILURE;
+    }
+
+    // Read the key from the file
+    size_t bytesRead = fread(key, 1, KEY_SIZE, file);
+    if (bytesRead != KEY_SIZE) {
+        fprintf(stderr, "Error reading key from file\n");
+        fclose(file);
+        return EXIT_FAILURE;
+    }
+
+    // Close the file
+    fclose(file); 
+
 
     // Step 1: Decrypt the entire frame
     if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
