@@ -181,43 +181,64 @@ b'\xa5\x87\xd1\xf9...'  # Encrypted frame
 
 ##  -----------------------------------------  ** Explanation for Adav_Enocder  logic ** -------------------------------------------
 
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 1 "hello" 2
-2025-02-06 22:10:08.782 | INFO     | __main__:__init__:44 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-2025-02-06 22:10:08.788 | INFO     | __main__:encode:102 - Encoding started for Channel 1 at Timestamp 2
-2025-02-06 22:10:08.893 | INFO     | __main__:_derive_session_key:65 - Derived session key for Channel 1: 460a4b75756ffdc76bef46f10043be5c
-2025-02-06 22:10:08.899 | INFO     | __main__:encode:124 - Encoded frame for Channel 1 | Timestamp: 2 | Encrypted Data: 00000000000000000000000000000000b9facc0f64b809a8f32318ec8406013d45543ed755b02ec22545141206cb0c688ab76dc65fef36c925c3ecef66830863d68bb3851009aa02d42df5edadba1c0dc51ad234397b9a3e8efc259a
-Encoded Data: b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xb9\xfa\xcc\x0fd\xb8\t\xa8\xf3#\x18\xec\x84\x06\x01=ET>\xd7U\xb0.\xc2%E\x14\x12\x06\xcb\x0ch\x8a\xb7m\xc6_\xef6\xc9%\xc3\xec\xeff\x83\x08c\xd6\x8b\xb3\x85\x10\t\xaa\x02\xd4-\xf5\xed\xad\xba\x1c\r\xc5\x1a\xd249{\x9a>\x8e\xfc%\x9a'
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 2 "hello" 2
-2025-02-06 22:10:17.641 | INFO     | __main__:__init__:44 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-2025-02-06 22:10:17.642 | INFO     | __main__:encode:102 - Encoding started for Channel 2 at Timestamp 2
-2025-02-06 22:10:17.683 | INFO     | __main__:_derive_session_key:65 - Derived session key for Channel 2: 7983b6c3122a15f04966bf8442bc425f
-2025-02-06 22:10:17.686 | INFO     | __main__:encode:124 - Encoded frame for Channel 2 | Timestamp: 2 | Encrypted Data: 00000000000000000000000000000000ff36466d3071c810a0644deba38dc70a7a50d0e6f4835094454eced498c9664c34e1aad67d568ce937ec8d554d097ce14f200739e53dc73a88f10ff767a792e28375c6c15811ae7e62d9d5ba
-Encoded Data: b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xff6Fm0q\xc8\x10\xa0dM\xeb\xa3\x8d\xc7\nzP\xd0\xe6\xf4\x83P\x94EN\xce\xd4\x98\xc9fL4\xe1\xaa\xd6}V\x8c\xe97\xec\x8dUM\t|\xe1O \x079\xe5=\xc7:\x88\xf1\x0f\xf7g\xa7\x92\xe2\x83u\xc6\xc1X\x11\xae~b\xd9\xd5\xba'
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 3 "hello" 3
-2025-02-06 22:10:27.054 | INFO     | __main__:__init__:44 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-2025-02-06 22:10:27.055 | INFO     | __main__:encode:102 - Encoding started for Channel 3 at Timestamp 3
-2025-02-06 22:10:27.094 | INFO     | __main__:_derive_session_key:65 - Derived session key for Channel 3: 6d65adca7ba1dd18911b311826d05cfa
-2025-02-06 22:10:27.096 | INFO     | __main__:encode:124 - Encoded frame for Channel 3 | Timestamp: 3 | Encrypted Data: 0000000000000000000000000000000096c6c107c2432ad1e39d5c8df97b6152f4b4545a1ab63908e83574d39bb79c5c362843cbc3074fd91c19d85ed60ec1974882016dd134daa49f76dbbc280a403157343d73c68ec88b73c88469
-Encoded Data: b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x96\xc6\xc1\x07\xc2C*\xd1\xe3\x9d\\\x8d\xf9{aR\xf4\xb4TZ\x1a\xb69\x08\xe85t\xd3\x9b\xb7\x9c\\6(C\xcb\xc3\x07O\xd9\x1c\x19\xd8^\xd6\x0e\xc1\x97H\x82\x01m\xd14\xda\xa4\x9fv\xdb\xbc(\n@1W4=s\xc6\x8e\xc8\x8bs\xc8\x84i'
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 3 "hello" 3
-2025-02-06 22:10:33.446 | INFO     | __main__:__init__:44 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-2025-02-06 22:10:33.447 | INFO     | __main__:encode:102 - Encoding started for Channel 3 at Timestamp 3
-2025-02-06 22:10:33.486 | INFO     | __main__:_derive_session_key:65 - Derived session key for Channel 3: 6d65adca7ba1dd18911b311826d05cfa
-2025-02-06 22:10:33.492 | INFO     | __main__:encode:124 - Encoded frame for Channel 3 | Timestamp: 3 | Encrypted Data: 0000000000000000000000000000000096c6c107c2432ad1e39d5c8df97b6152f4b4545a1ab63908e83574d39bb79c5c362843cbc3074fd91c19d85ed60ec1974882016dd134daa49f76dbbc280a403157343d73c68ec88b73c88469
-Encoded Data: b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x96\xc6\xc1\x07\xc2C*\xd1\xe3\x9d\\\x8d\xf9{aR\xf4\xb4TZ\x1a\xb69\x08\xe85t\xd3\x9b\xb7\x9c\\6(C\xcb\xc3\x07O\xd9\x1c\x19\xd8^\xd6\x0e\xc1\x97H\x82\x01m\xd14\xda\xa4\x9fv\xdb\xbc(\n@1W4=s\xc6\x8e\xc8\x8bs\xc8\x84i'
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 100 "hello" 3
-2025-02-06 22:10:39.688 | INFO     | __main__:__init__:44 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
-2025-02-06 22:10:39.690 | INFO     | __main__:encode:102 - Encoding started for Channel 100 at Timestamp 3
-2025-02-06 22:10:39.691 | ERROR    | __main__:_derive_session_key:50 - Unauthorized channel 100 attempted!
-Traceback (most recent call last):
-  File "/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design/Adv_enoder.py", line 146, in <module>
-    main()
-  File "/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design/Adv_enoder.py", line 140, in main
-    encrypted_data = encoder.encode(args.channel, args.frame.encode(), args.timestamp)
-  File "/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design/Adv_enoder.py", line 109, in encode
-    session_key = self._derive_session_key(channel)
-  File "/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design/Adv_enoder.py", line 51, in _derive_session_key
-    raise ValueError(f"Unauthorized channel {channel}. Not in allowed list.")
-ValueError: Unauthorized channel 100. Not in allowed list.
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ 
+# MITRE eCTF 2025 - Encoder
 
+
+It securely encrypts messages using **AES-128 in CFB mode**, implementing **key rotation and hierarchical key derivation**.
+
+## 🔹 How It Works
+1. **Key Derivation**  
+   - A **unique key is derived per channel** and **rotated every 5 minutes**.
+   - **Outer Key** is derived from the **Master Key** using **Channel ID + Time Bucket**.
+   - **Inner Key** is derived **from the Outer Key** for additional security.
+
+2. **Two-Layer Encryption**
+   - The **Inner Key encrypts** the raw frame first.
+   - The **Outer Key encrypts** (Channel ID + Timestamp + Inner Encrypted Frame).
+   - Ensures metadata is protected while allowing authentication.
+
+   
+
+## ------------------------------------------------------------------------------------------------------------------------------------------
+
+# How the Decoder Works with the Encoder
+
+| Step | Encoder | Decoder |
+|------|---------|---------|
+| **1** | Derives **Outer Key** from (Master Key + Channel ID + Time Bucket) | Derives the same **Outer Key** (checking `T`, `T-1`, `T+1`) |
+| **2** | Encrypts **(Channel ID + Timestamp + Inner Encrypted Frame)** using **Outer Key** | Decrypts the **Outer Layer** using the same **Outer Key** |
+| **3** | Extracts the **Channel ID and Timestamp** | Extracts and validates the **Channel ID and Timestamp** |
+| **4** | Derives **Inner Key** from **Outer Key** | Derives **Inner Key** from the same **Outer Key** |
+| **5** | Encrypts the **Raw Frame** using the **Inner Key** | Decrypts the **Inner Layer** using the **Inner Key** |
+| **6** | Sends encrypted data | Recovers the **original message** |
+
+---
+
+### **Now the Decoder:**
+- **Handles clock drift** by trying multiple time buckets.
+-  **Follows the same key derivation logic** as the encoder.
+-  **Decrypts in two stages (Outer Layer → Inner Layer).**
+-  **Logs decryption steps for debugging.**
+
+
+
+
+
+### ------------------------- output for advanced -------------------------------
+
+raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 3 "hello" 3
+2025-02-07 14:52:42.929 | INFO     | __main__:<module>:28 - Encoder started...
+2025-02-07 14:52:42.953 | INFO     | __main__:__init__:47 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+2025-02-07 14:52:42.966 | INFO     | __main__:encode:114 - Encoding started for Channel 3 at Timestamp 3
+2025-02-07 14:52:43.071 | INFO     | __main__:_derive_outer_key:73 - Derived outer key for Channel 3 | Time Bucket 14491316: a678e49e76557fdf250d420c99dd7368
+2025-02-07 14:52:43.072 | INFO     | __main__:_derive_inner_key:91 - Derived inner key from outer key: d249e2d47ea1b9ff78f085b5c18bfaf3
+2025-02-07 14:52:43.076 | INFO     | __main__:_aes_encrypt:105 - Data encrypted with AES-128 CFB.
+2025-02-07 14:52:43.076 | INFO     | __main__:encode:128 - Inner encryption complete for channel 3.
+2025-02-07 14:52:43.077 | INFO     | __main__:_aes_encrypt:105 - Data encrypted with AES-128 CFB.
+2025-02-07 14:52:43.077 | INFO     | __main__:encode:136 - Full packet encrypted for Channel 3 | Timestamp: 3 | Encrypted Data: 000000000000000000000000000000004a57f1c6cf60315ce94453adbb660e2ae85bb9643d96383596a4e3528f062dfc49dcddae99047498456d2e9bd69f26c4438c3762637baaebaa3c19c48c293b22538769633c52088dced8d495
+Encoded Data: b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00JW\xf1\xc6\xcf`1\\\xe9DS\xad\xbbf\x0e*\xe8[\xb9d=\x9685\x96\xa4\xe3R\x8f\x06-\xfcI\xdc\xdd\xae\x99\x04t\x98Em.\x9b\xd6\x9f&\xc4C\x8c7bc{\xaa\xeb\xaa<\x19\xc4\x8c);"S\x87ic<R\x08\x8d\xce\xd8\xd4\x95'
+raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ectf25_design$ python3 Adv_enoder.py  my_secrets.json 100 "hello" 3
+2025-02-07 14:53:56.557 | INFO     | __main__:<module>:28 - Encoder started...
+2025-02-07 14:53:56.560 | INFO     | __main__:__init__:47 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
+2025-02-07 14:53:56.560 | INFO     | __main__:encode:114 - Encoding started for Channel 100 at Timestamp 3
+2025-02-07 14:53:56.561 | ERROR    | __main__:_derive_outer_key:58 - Unauthorized channel 100 attempted!
