@@ -181,7 +181,7 @@ b'\xa5\x87\xd1\xf9...'  # Encrypted frame
 
 ##  -----------------------------------------  ** Explanation for Adav_Enocder  logic ** -------------------------------------------
 
-# MITRE eCTF 2025 - Encoder
+
 
 
 It securely encrypts messages using **AES-128 in CFB mode**, implementing **key rotation and hierarchical key derivation**.
