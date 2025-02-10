@@ -254,77 +254,110 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
     return 0;
 }
 
-/** @brief Processes a packet containing frame data.
- *
- *  @param pkt_len A pointer to the incoming packet.
- *  @param new_frame A pointer to the incoming packet.
- *
- *  @return 0 if successful.  -1 if data is from unsubscribed channel.
-*/
-int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
-    char output_buf[128] = {0};
-    uint16_t frame_size;
-    channel_id_t channel;
-    timestamp_t timestamp;
 
-    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
-    uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
-    uint8_t key[KEY_SIZE];  // Array to store the key
 
-    // Open the file containing the secret key
-    FILE *file = fopen("/global.secrets", "rb");  // Open the file in binary mode
+/**
+ * @brief Reads encryption key from a file.
+ * 
+ * @note HEAP USED HERE check for UAF
+ * 
+ * @return A pointer to the key if successful, NULL if failed.
+ */
+uint8_t* read_key_from_file() {
+    FILE *file = fopen("/global.secrets", "r");
     if (file == NULL) {
         perror("Failed to open file");
-        return EXIT_FAILURE;
+        return NULL;
     }
 
-    // Read the key from the file
-    size_t bytesRead = fread(key, 1, KEY_SIZE, file);
-    if (bytesRead != KEY_SIZE) {
-        fprintf(stderr, "Error reading key from file\n");
+    fseek(file, 0, SEEK_END);
+    long fsize = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    char *buffer = malloc(fsize + 1);
+    if (buffer == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
         fclose(file);
-        return EXIT_FAILURE;
+        return NULL;
     }
 
-    // Close the file
-    fclose(file); 
+    fread(buffer, 1, fsize, file);
+    buffer[fsize] = '\0';
+    fclose(file);
 
-
-    // Step 1: Decrypt the entire frame
-    if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
-        print_error("Failed to decrypt frame\n");
-        return -1; // Drop the packet if decryption fails
+    char *key_start = strstr(buffer, "\"some_secrets\": \"");
+    if (key_start == NULL) {
+        fprintf(stderr, "Key not found\n");
+        free(buffer);
+        return NULL;
     }
-    // Step 2: Extract the channel and timestamp from the decrypted frame
-    // Step 2: Extract the channel and timestamp from the decrypted frame
-    frame_packet_t* decrypted_packet = (frame_packet_t*)decrypted_frame;
-    channel = decrypted_packet->channel;
-    timestamp = decrypted_packet->timestamp;
 
-    // Frame size calculation correction
-    frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+    key_start += strlen("\"some_secrets\": \"");
+    uint8_t *key = malloc(KEY_SIZE + 1);
+    if (key == NULL) {
+        fprintf(stderr, "Memory allocation failed for key\n");
+        free(buffer);
+        return NULL;
+    }
 
-    // Check subscription validity
-    print_debug("Checking subscription\n");
-    if (is_subscribed(channel, timestamp)) {
-        print_debug("Subscription Valid\n");
+    strncpy((char *)key, key_start, KEY_SIZE);
+    key[KEY_SIZE] = '\0';
 
-        // Step 4: Decrypt the message part of the frame
-        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
-            print_error("Failed to decrypt message\n");
-            return -1;
-        }
-        // Properly referencing decrypted_packet to access the data
-        write_packet(DECODE_MSG, decrypted_packet->data, frame_size);
-        return 0;
-    } else {
-        STATUS_LED_RED();
-        sprintf(output_buf, "Receiving unsubscribed channel data. %u\n", channel);
-        print_error(output_buf);
+    free(buffer);
+    buffer = NULL;
+    return key;
+}
+
+
+/**
+ * @brief Processes a packet containing frame data.
+ *
+ * @param pkt_len Length of the incoming packet.
+ * @param new_frame A pointer to the incoming packet.
+ *
+ * @return 0 if successful, -1 if data is from unsubscribed channel.
+ */
+int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
+    uint8_t *key = read_key_from_file();
+    if (key == NULL) {
+        fprintf(stderr, "Failed to read encryption key\n");
         return -1;
     }
 
+    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
+    uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
+    char output_buf[128] = {0};
+
+    // Decrypt the entire frame using the extracted key
+    if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
+        print_error("Failed to decrypt frame\n");
+        free(key);
+        return -1; // Drop the packet if decryption fails
     }
+
+    frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
+    uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+
+    // Check subscription validity
+    if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
+        // Decrypt the message part of the frame
+        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
+            print_error("Failed to decrypt message\n");
+            free(key);
+            return -1;
+        }
+
+        write_packet(DECODE_MSG, decrypted_message, frame_size);
+        free(key);
+        return 0;
+    } else {
+        STATUS_LED_RED();
+        sprintf(output_buf, "Receiving unsubscribed channel data. %u\n", decrypted_packet->channel);
+        print_error(output_buf);
+        free(key);
+        return -1;
+    }
+}
 
 /** @brief Initializes peripherals for system boot.
 */
