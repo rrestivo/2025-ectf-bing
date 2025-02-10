@@ -320,10 +320,11 @@ uint8_t* read_key_from_file() {
 int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     uint8_t *key = read_key_from_file();
     if (key == NULL) {
+        STATUS_LED_YELLOW();
         fprintf(stderr, "Failed to read encryption key\n");
         return -1;
     }
-
+    STATUS_LED_CYAN();
     uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
     char output_buf[128] = {0};
