@@ -14,6 +14,9 @@ import argparse
 import json
 from pathlib import Path
 import struct
+import os
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
 from loguru import logger
 
@@ -36,6 +39,24 @@ def gen_subscription(
 
     # Load the json of the secrets file
     secrets = json.loads(secrets)
+    
+    encryption_key = secrets.get("encryption_key") 
+    
+    if not encryption_key:
+        raise ValueError("Missing 'encryption_key' in secrets file.")
+
+    encryption_key = encryption_key.encode()
+    
+    iv = os.urandom(12)
+    plaintext = struct.pack("<IQQI", device_id, start, end, channel)
+    
+    # Create AES-GCM Cipher
+    cipher = Cipher(algorithms.AES(encryption_key), modes.GCM(iv), backend=default_backend())
+    encryptor = cipher.encryptor()
+    
+    # Encrypt the plaintext subscription data
+    ciphertext = encryptor.update(plaintext) + encryptor.finalize()
+    auth_tag = encryptor.tag  # 16-byte authentication tag
 
     # You can use secrets generated using `gen_secrets` here like:
     # secrets["some_secrets"]
@@ -43,7 +64,7 @@ def gen_subscription(
     # Please note that the secrets are READ ONLY at this sage!
 
     # Pack the subscription. This will be sent to the decoder with ectf25.tv.subscribe
-    return struct.pack("<IQQI", device_id, start, end, channel)
+    return iv + ciphertext + auth_tag
 
 
 def parse_args():
