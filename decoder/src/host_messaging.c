@@ -183,8 +183,8 @@ int read_packet(msg_type_t* cmd, void *buf, uint16_t *len) {
         return -1;
     }
 
+    printf("Receiving header\n");
     read_header(&header);
-
     *cmd = header.cmd;
 
     if (len != NULL) {

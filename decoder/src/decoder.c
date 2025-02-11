@@ -160,6 +160,7 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     }
     return 0;
 }
+<<<<<<< Updated upstream
 
 // /** @brief Prints the boot reference design flag
 //  *
@@ -168,6 +169,28 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
 // void boot_flag(void) {
 //     char flag[28];
 //     char output_buf[128] = {0};
+=======
+// int is_subscribed(channel_id_t channel) {
+//     // Check if this is an emergency broadcast message
+//     if (channel == EMERGENCY_CHANNEL) {
+//         return 1;
+//     }
+//     // Check if the decoder has has a subscription
+//     for (int i = 0; i < MAX_CHANNEL_COUNT; i++) {
+//         if (decoder_status.subscribed_channels[i].id == channel && decoder_status.subscribed_channels[i].active) {
+//             return 1;
+//         }
+//     }
+//     return 0;
+// }
+/** @brief Prints the boot reference design flag
+ *
+ *  TODO: Remove this in your final design
+*/
+void boot_flag(void) {
+    char flag[28];
+    char output_buf[128] = {0};
+>>>>>>> Stashed changes
 
 //     for (int i = 0; aseiFuengleR[i]; i++) {
 //         flag[i] = deobfuscate(aseiFuengleR[i], djFIehjkklIH[i]);
@@ -315,6 +338,7 @@ uint8_t* read_key_from_file() {
  * @param pkt_len Length of the incoming packet.
  * @param new_frame A pointer to the incoming packet.
  *
+<<<<<<< Updated upstream
  * @return 0 if successful, -1 if data is from unsubscribed channel.
  */
 int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
@@ -324,10 +348,51 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
         fprintf(stderr, "Failed to read encryption key\n");
         return -1;
     }
+=======
+ *  @return 0 if successful.  -1 if data is from unsubscribed channel.
+*/
+// int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
+//     char output_buf[128] = {0};
+//     uint16_t frame_size;
+//     channel_id_t channel;
+
+//     // Frame size is the size of the packet minus the size of non-frame elements
+//     frame_size = pkt_len - (sizeof(new_frame->channel) + sizeof(new_frame->timestamp));
+//     channel = new_frame->channel;
+
+//     // The reference design doesn't use the timestamp, but you may want to in your design
+//     // timestamp_t timestamp = new_frame->timestamp;
+
+//     // Check that we are subscribed to the channel...
+//     print_debug("Checking subscription\n");
+//     if (is_subscribed(channel)) {
+//         print_debug("Subscription Valid\n");
+//         /* The reference design doesn't need any extra work to decode, but your design likely will.
+//         *  Do any extra decoding here before returning the result to the host. */
+//         write_packet(DECODE_MSG, new_frame->data, frame_size);
+//         return 0;
+//     } else {
+//         STATUS_LED_RED();
+//         sprintf(
+//             output_buf,
+//             "Receiving unsubscribed channel data.  %u\n", channel);
+//         print_error(output_buf);
+//         return -1;
+//     }
+// }
+/************************************************************************************************ */
+
+
+int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
+    // Hardcoded 16-byte key
+    const uint8_t hardcoded_key[KEY_SIZE] = "EXAMPLE_EXAMPLE"; 
+
+>>>>>>> Stashed changes
     STATUS_LED_CYAN();
     uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
     char output_buf[128] = {0};
+<<<<<<< Updated upstream
 
     // Decrypt the entire frame using the extracted key
     if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
@@ -350,6 +415,29 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
 
         write_packet(DECODE_MSG, decrypted_message, frame_size);
         free(key);
+=======
+    if(sizeof(frame_packet_t)%16 != 0){
+        print_error("NEW ERROR: Frame size is not a multiple of 16\n");
+    }
+    // Decrypt the entire frame using the extracted key
+    if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), hardcoded_key, decrypted_frame) == -1) {
+        print_error("Failed to decrypt LENGTH ERROR frame\n");
+        return -1; // Drop the packet if decryption fails
+    }
+
+    frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
+    uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+
+    // Check subscription validity
+    if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
+        // Decrypt the message part of the frame
+        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, hardcoded_key, decrypted_message) != 0) {
+            print_error("Failed to decrypt message\n");
+            return -1;
+        }
+
+        write_packet(DECODE_MSG, decrypted_message, frame_size);
+>>>>>>> Stashed changes
         return 0;
     } else {
         STATUS_LED_RED();
@@ -360,6 +448,7 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     }
 }
 
+/************************************************************************************************ */
 /** @brief Initializes peripherals for system boot.
 */
 void init() {
@@ -465,7 +554,7 @@ int main(void) {
         STATUS_LED_GREEN();
 
         result = read_packet(&cmd, uart_buf, &pkt_len);
-
+        STATUS_LED_PURPLE();
         if (result < 0) {
             STATUS_LED_ERROR();
             print_error("Failed to receive cmd from host\n");
