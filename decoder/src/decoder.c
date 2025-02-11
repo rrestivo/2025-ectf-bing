@@ -128,7 +128,7 @@ flash_entry_t decoder_status;
 // getting this running than to try to untangle this
 // TODO: remove this from your final design
 // NOTE: you're not allowed to do this in your code
-// typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,0x2f56101,0x11a38bb,0x485124,0x11644a7,0x3c74e8,0x3c74e8,0x2f56101,0x2ca498,0x127bc,0x2e590b1,0x1d467da,0x1fbf0a2,0x11a38bb,0x2b22bad,0x2e590b1,0x1ffe4b6,0x2b61fc1,0x1fbf0a2,0x1fbf0a2,0x2e590b1,0x11644a7,0x2e590b1,0x1cc7fb2,0x1d073c6,0x2179d2e,0};const aErjfkdfru djFIehjkklIH[]={0x138e798,0x2cdbb14,0x1f9f376,0x23bcfda,0x1d90544,0x1cad2d2,0x860e2c,0x860e2c,0x1f9f376,0x25cbe0c,0x11c82b4,0x35ff56,0x3935040,0xc7ea90,0x23bcfda,0x1ae6dee,0x35ff56,0x138e798,0x21f6af6,0xc7ea90,0xc7ea90,0x35ff56,0x1cad2d2,0x35ff56,0x2b15630,0x3225338,0x4431c8,0};typedef int skerufjp;skerufjp siNfidpL(skerufjp verLKUDSfj){aErjfkdfru ubkerpYBd=12+1;skerufjp xUrenrkldxpxx=2253667944%0x432a1f32;aErjfkdfru UfejrlcpD=1361423303;verLKUDSfj=(verLKUDSfj+0x12345678)%60466176;while(xUrenrkldxpxx--!=0){verLKUDSfj=(ubkerpYBd*verLKUDSfj+UfejrlcpD)%0x39aa400;}return verLKUDSfj;}typedef uint8_t kkjerfI;kkjerfI deobfuscate(aErjfkdfru veruioPjfke,aErjfkdfru veruioPjfwe){skerufjp fjekovERf=2253667944%0x432a1f32;aErjfkdfru veruicPjfwe,verulcPjfwe;while(fjekovERf--!=0){veruioPjfwe=(veruioPjfwe-siNfidpL(veruioPjfke))%0x39aa400;veruioPjfke=(veruioPjfke-siNfidpL(veruioPjfwe))%60466176;}veruicPjfwe=(veruioPjfke+0x39aa400)%60466176;verulcPjfwe=(veruioPjfwe+60466176)%0x39aa400;return veruicPjfwe*60466176+verulcPjfwe-89;}
+typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,0x2f56101,0x11a38bb,0x485124,0x11644a7,0x3c74e8,0x3c74e8,0x2f56101,0x2ca498,0x127bc,0x2e590b1,0x1d467da,0x1fbf0a2,0x11a38bb,0x2b22bad,0x2e590b1,0x1ffe4b6,0x2b61fc1,0x1fbf0a2,0x1fbf0a2,0x2e590b1,0x11644a7,0x2e590b1,0x1cc7fb2,0x1d073c6,0x2179d2e,0};const aErjfkdfru djFIehjkklIH[]={0x138e798,0x2cdbb14,0x1f9f376,0x23bcfda,0x1d90544,0x1cad2d2,0x860e2c,0x860e2c,0x1f9f376,0x25cbe0c,0x11c82b4,0x35ff56,0x3935040,0xc7ea90,0x23bcfda,0x1ae6dee,0x35ff56,0x138e798,0x21f6af6,0xc7ea90,0xc7ea90,0x35ff56,0x1cad2d2,0x35ff56,0x2b15630,0x3225338,0x4431c8,0};typedef int skerufjp;skerufjp siNfidpL(skerufjp verLKUDSfj){aErjfkdfru ubkerpYBd=12+1;skerufjp xUrenrkldxpxx=2253667944%0x432a1f32;aErjfkdfru UfejrlcpD=1361423303;verLKUDSfj=(verLKUDSfj+0x12345678)%60466176;while(xUrenrkldxpxx--!=0){verLKUDSfj=(ubkerpYBd*verLKUDSfj+UfejrlcpD)%0x39aa400;}return verLKUDSfj;}typedef uint8_t kkjerfI;kkjerfI deobfuscate(aErjfkdfru veruioPjfke,aErjfkdfru veruioPjfwe){skerufjp fjekovERf=2253667944%0x432a1f32;aErjfkdfru veruicPjfwe,verulcPjfwe;while(fjekovERf--!=0){veruioPjfwe=(veruioPjfwe-siNfidpL(veruioPjfke))%0x39aa400;veruioPjfke=(veruioPjfke-siNfidpL(veruioPjfwe))%60466176;}veruicPjfwe=(veruioPjfke+0x39aa400)%60466176;verulcPjfwe=(veruioPjfwe+60466176)%0x39aa400;return veruicPjfwe*60466176+verulcPjfwe-89;}
 
 
 /**********************************************************
@@ -140,42 +140,35 @@ flash_entry_t decoder_status;
  *  @param channel The channel number to be checked.
  *  @return 1 if the the decoder is subscribed to the channel.  0 if not.
 */
-int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
+int is_subscribed(channel_id_t channel) {
     // Check if this is an emergency broadcast message
     if (channel == EMERGENCY_CHANNEL) {
         return 1;
     }
-    // Check if the decoder has has a subscription - > might be off by one error -> make sure it is not checking for channel 9
+    // Check if the decoder has has a subscription
     for (int i = 0; i < MAX_CHANNEL_COUNT; i++) {
-
-        // retrieves the start and end date of subscribtions for each channel
-        // i.e. channel 1 start 1 end 100 -> time starts in boot and counts up
-        uint64_t start = decoder_status.subscribed_channels[i].start_timestamp;
-        uint64_t end = decoder_status.subscribed_channels[i].end_timestamp;
-        // checks if entries in the 
-        if ((decoder_status.subscribed_channels[i].id == channel && decoder_status.subscribed_channels[i].active) && ((timestamp <= end)) && (timestamp >= start)) {
-        
+        if (decoder_status.subscribed_channels[i].id == channel && decoder_status.subscribed_channels[i].active) {
             return 1;
         }
     }
     return 0;
 }
 
-// /** @brief Prints the boot reference design flag
-//  *
-//  *  TODO: Remove this in your final design
-// */
-// void boot_flag(void) {
-//     char flag[28];
-//     char output_buf[128] = {0};
+/** @brief Prints the boot reference design flag
+ *
+ *  TODO: Remove this in your final design
+*/
+void boot_flag(void) {
+    char flag[28];
+    char output_buf[128] = {0};
 
-//     for (int i = 0; aseiFuengleR[i]; i++) {
-//         flag[i] = deobfuscate(aseiFuengleR[i], djFIehjkklIH[i]);
-//         flag[i+1] = 0;
-//     }
-//     sprintf(output_buf, "Boot Reference Flag: %s\n", flag);
-//     print_debug(output_buf);
-// }
+    for (int i = 0; aseiFuengleR[i]; i++) {
+        flag[i] = deobfuscate(aseiFuengleR[i], djFIehjkklIH[i]);
+        flag[i+1] = 0;
+    }
+    sprintf(output_buf, "Boot Reference Flag: %s\n", flag);
+    print_debug(output_buf);
+}
 
 
 /**********************************************************
@@ -265,60 +258,21 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     char output_buf[128] = {0};
     uint16_t frame_size;
     channel_id_t channel;
-    timestamp_t timestamp;
-
-    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
-    uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
-    uint8_t key[KEY_SIZE];  // Array to store the key
-
-    // Open the file containing the secret key
-    FILE *file = fopen("/global.secrets", "rb");  // Open the file in binary mode
-    if (file == NULL) {
-        perror("Failed to open file");
-        return EXIT_FAILURE;
-    }
-
-    // Read the key from the file
-    size_t bytesRead = fread(key, 1, KEY_SIZE, file);
-    if (bytesRead != KEY_SIZE) {
-        fprintf(stderr, "Error reading key from file\n");
-        fclose(file);
-        return EXIT_FAILURE;
-    }
-
-    // Close the file
-    fclose(file); 
-
-
-    // Step 1: Decrypt the entire frame
-    if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
-        print_error("Failed to decrypt frame\n");
-        return -1; // Drop the packet if decryption fails
-    }
-    // Step 2: Extract the channel and timestamp from the decrypted frame
-    frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
-    channel = decrypted_packet->channel;
-    timestamp = decrypted_packet->timestamp;
 
     // Frame size is the size of the packet minus the size of non-frame elements
-    frame_size = pkt_len - (sizeof(decrypted_frame->channel) + sizeof(decrypted_frame->timestamp));
-    //channel = decrypted_frame->channel;
+    frame_size = pkt_len - (sizeof(new_frame->channel) + sizeof(new_frame->timestamp));
+    channel = new_frame->channel;
 
     // The reference design doesn't use the timestamp, but you may want to in your design
     // timestamp_t timestamp = new_frame->timestamp;
 
     // Check that we are subscribed to the channel...
     print_debug("Checking subscription\n");
-    if (is_subscribed(channel, timestamp)) {
+    if (is_subscribed(channel)) {
         print_debug("Subscription Valid\n");
-        // Step 4: Decrypt the message part of the frame
-        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
-            print_error("Failed to decrypt message\n");
-            return -1;
-        }
         /* The reference design doesn't need any extra work to decode, but your design likely will.
         *  Do any extra decoding here before returning the result to the host. */
-        write_packet(DECODE_MSG, decrypted_frame->data, frame_size);
+        write_packet(DECODE_MSG, new_frame->data, frame_size);
         return 0;
     } else {
         STATUS_LED_RED();
@@ -455,6 +409,9 @@ int main(void) {
                 crypto_example();
             #endif // CRYPTO_EXAMPLE
 
+            // Print the boot flag
+            // TODO: Remove this from your design
+            boot_flag();
             list_channels();
             break;
 
