@@ -13,7 +13,6 @@ Copyright: Copyright (c) 2025 The MITRE Corporation
 import argparse
 import json
 from pathlib import Path
-import secrets
 
 from loguru import logger
 
@@ -36,14 +35,15 @@ def gen_secrets(channels: list[int]) -> bytes:
     # Create the secrets object
     # You can change this to generate any secret material
     # The secrets file will never be shared with attackers
-    secrets_data = {
+    secrets = {
         "channels": channels,
-        "some_secrets": secrets.token_bytes(16).hex(),  
+        "some_secrets": "EXAMPLE",
     }
+
     # NOTE: if you choose to use JSON for your file type, you will not be able to
     # store binary data, and must either use a different file type or encode the
     # binary data to hex, base64, or another type of ASCII-only encoding
-    return json.dumps(secrets_data).encode()
+    return json.dumps(secrets).encode()
 
 
 def parse_args():

@@ -21,6 +21,7 @@
 #include "mxc_delay.h"
 #include "simple_flash.h"
 #include "host_messaging.h"
+#include <stdlib.h>
 
 #include "simple_uart.h"
 
@@ -263,50 +264,54 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
  * 
  * @return A pointer to the key if successful, NULL if failed.
  */
-uint8_t* read_key_from_file() {
-    FILE *file = fopen("/global.secrets", "r");
-    if (file == NULL) {
-        perror("Failed to open file");
-        return NULL;
-    }
+// uint8_t* read_key_from_file() {
+//     FILE *file = fopen("/global.secrets", "r");
+//     if (file == NULL) {
+//         perror("Failed to open file");
+//         return NULL;
+//     }
 
-    fseek(file, 0, SEEK_END);
-    long fsize = ftell(file);
-    fseek(file, 0, SEEK_SET);
+//     fseek(file, 0, SEEK_END);
+//     long fsize = ftell(file);
+//     fseek(file, 0, SEEK_SET);
 
-    char *buffer = malloc(fsize + 1);
-    if (buffer == NULL) {
-        fprintf(stderr, "Memory allocation failed\n");
-        fclose(file);
-        return NULL;
-    }
+//     char *buffer = malloc(fsize + 1);
+//     if (buffer == NULL) {
+//         fprintf(stderr, "Memory allocation failed\n");
+//         fclose(file);
+//         return NULL;
+//     }
 
-    fread(buffer, 1, fsize, file);
-    buffer[fsize] = '\0';
-    fclose(file);
+//     fread(buffer, 1, fsize, file);
+//     buffer[fsize] = '\0';
+//     fclose(file);
 
-    char *key_start = strstr(buffer, "\"some_secrets\": \"");
-    if (key_start == NULL) {
-        fprintf(stderr, "Key not found\n");
-        free(buffer);
-        return NULL;
-    }
+//     char *key_start = strstr(buffer, "\"some_secrets\": \"");
+//     if (key_start == NULL) {
+//         fprintf(stderr, "Key not found\n");
+//         free(buffer);
+//         return NULL;
+//     }
 
-    key_start += strlen("\"some_secrets\": \"");
-    uint8_t *key = malloc(KEY_SIZE + 1);
-    if (key == NULL) {
-        fprintf(stderr, "Memory allocation failed for key\n");
-        free(buffer);
-        return NULL;
-    }
+//     key_start += strlen("\"some_secrets\": \"");
+//     uint8_t *key = malloc(KEY_SIZE + 1);
+//     if (key == NULL) {
+//         fprintf(stderr, "Memory allocation failed for key\n");
+//         free(buffer);
+//         return NULL;
+//     }
 
-    strncpy((char *)key, key_start, KEY_SIZE);
-    key[KEY_SIZE] = '\0';
+//     strncpy((char *)key, key_start, KEY_SIZE);
+//     key[KEY_SIZE] = '\0';
 
-    free(buffer);
-    buffer = NULL;
-    return key;
-}
+//     free(buffer);
+//     buffer = NULL;
+//     return key;
+// }
+
+
+
+
 
 
 /**
@@ -317,82 +322,129 @@ uint8_t* read_key_from_file() {
  *
  * @return 0 if successful, -1 if data is from unsubscribed channel.
  */
-// int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
-//     uint8_t *key = read_key_from_file();
-//     if (key == NULL) {
-//         STATUS_LED_YELLOW();
-//         fprintf(stderr, "Failed to read encryption key\n");
-//         return -1;
-//     }
-//     STATUS_LED_CYAN();
-//     uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
-//     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
-//     char output_buf[128] = {0};
-
-//     // Decrypt the entire frame using the extracted key
-//     if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
-//         print_error("Failed to decrypt frame\n");
-//         free(key);
-//         return -1; // Drop the packet if decryption fails
-//     }
-
-//     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
-//     uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
-
-//     // Check subscription validity
-//     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
-//         // Decrypt the message part of the frame
-//         if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
-//             print_error("Failed to decrypt message\n");
-//             free(key);
-//             return -1;
-//         }
-
-//         write_packet(DECODE_MSG, decrypted_message, frame_size);
-//         free(key);
-//         return 0;
-//     } else {
-//         STATUS_LED_RED();
-//         sprintf(output_buf, "Receiving unsubscribed channel data. %u\n", decrypted_packet->channel);
-//         print_error(output_buf);
-//         free(key);
-//         return -1;
-//     }
-
-    
-// }
-
-
 int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
+    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
+    uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
     char output_buf[128] = {0};
-    uint16_t frame_size;
-    channel_id_t channel;
+    
+    /********************************** DEBUG *****************************************************/
+    char debug_buf[128];
+    // Debug: Received packet length
+    sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
+    print_debug(debug_buf);
 
-    // Frame size is the size of the packet minus the size of non-frame elements
-    frame_size = pkt_len - (sizeof(new_frame->channel) + sizeof(new_frame->timestamp));
-    channel = new_frame->channel;
+    // Print actual frame size
+    sprintf(debug_buf, "Expected frame_packet_t size: %d bytes", (int)sizeof(frame_packet_t));
+    print_debug(debug_buf);
+    /********************************** DEBUG END*****************************************************/
 
-    // The reference design doesn't use the timestamp, but you may want to in your design
-    // timestamp_t timestamp = new_frame->timestamp;
+    /********************************** KEY READ *****************************************************/
+    // Hardcoded JSON data with the new secret key
+    const char* json_data = "{\"channels\": [0, 1, 2, 3, 4, 5, 6, 7, 8], \"some_secrets\": \"a4359d15b2e12213ca1fb8a22efcac31\"}";
+    const char* key_start = strstr(json_data, "\"some_secrets\": \"");
 
-    // Check that we are subscribed to the channel...
-    print_debug("Checking subscription\n");
-    // if (is_subscribed(channel)) {
-    //     print_debug("Subscription Valid\n");
-    //     /* The reference design doesn't need any extra work to decode, but your design likely will.
-    //     *  Do any extra decoding here before returning the result to the host. */
-    //     write_packet(DECODE_MSG, new_frame->data, frame_size);
-    //     return 0;
-    // } else {
-    //     STATUS_LED_RED();
-    //     sprintf(
-    //         output_buf,
-    //         "Receiving unsubscribed channel data.  %u\n", channel);
-    //     print_error(output_buf);
-    //     return -1;
-    //}
-    return -1;
+    if (key_start == NULL) {
+        STATUS_LED_YELLOW();
+        print_debug("Key not found in hardcoded JSON");
+        return -1;
+    }
+
+    // read until key start then moves pointer length of keystart in bytes to start of the key 
+    // Move the pointer to the start of the key value
+    key_start += strlen("\"some_secrets\": \"");
+    if (*key_start == NULL) {
+        STATUS_LED_YELLOW();
+        print_debug("Failed to set hardcoded encryption key");
+        return -1;
+    }
+
+    // Extract the key directly without converting to binary
+    char key_hex[33];  // 32 characters for the key plus a null terminator
+    strncpy(key_hex, key_start, 32);
+    key_hex[32] = '\0';  // Ensure null termination
+
+    // Display the extracted key
+    sprintf(debug_buf, "Encryption Key: %s", key_hex);
+    print_debug(debug_buf);
+
+    STATUS_LED_PURPLE();
+    print_debug("------ Key successfully read ------");
+    /********************************** KEY READ END *****************************************************/
+    print_debug("------ we are here before the light change to cyan after reading the key ------");
+    //STATUS_LED_CYAN();
+
+    print_debug("----------------------- we are after color change -------------------------");
+
+    // Debugging size before decryption
+    sprintf(debug_buf, "Size before decrypt_sym: %d bytes", pkt_len);
+    print_debug(debug_buf);
+
+    print_debug("------ Entering decrypt_sym function ------");
+    int dec_ret = decrypt_sym((uint8_t *)new_frame, pkt_len, key_start, decrypted_frame);
+    if(dec_ret == -1)print_debug("__________PACKET LENGTH ERROR________________");
+
+    if (dec_ret != 0) {
+        print_debug("--------------- Failed to decrypt frame ---------------------------");
+        return -1; 
+    }
+
+    print_debug("------ Leaving decrypt_sym function ------");
+
+    // Handle Extra Data or IV Skipping
+    // uint8_t* frame_start = decrypted_frame;
+    
+    // // If pkt_len is larger than frame_packet_t, IV or extra data is present
+    // if (pkt_len > sizeof(frame_packet_t)) {
+    //     int extra_bytes = pkt_len - sizeof(frame_packet_t);
+    //     frame_start += extra_bytes;  // Move past the extra data
+    //     sprintf(output_buf, "Skipping %d extra bytes (IV or padding)", extra_bytes);
+    //     print_debug(output_buf);
+    // }
+
+    frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
+    uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+
+
+
+
+    sprintf(debug_buf, "channel ->  %d, timestamp -> %d", decrypted_packet->channel, decrypted_packet->timestamp);
+    print_debug(debug_buf);
+    sprintf(debug_buf, "Calculated Frame Size: %d bytes", frame_size);
+    print_debug(debug_buf);
+
+    // Debug: Check alignment issue
+    if (sizeof(frame_packet_t) % 16 != 0) {
+        print_debug("FRAME PACKET NOT DIV BY 16 ERROR!!!!");
+    }
+
+    if (sizeof(frame_packet_t) == 0) {
+        print_debug("----------------- Frame is empty error ----------------------!!!!");
+    }
+
+    //  Check subscription validity
+    if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
+        print_debug("------ Valid Subscription Detected ------");
+        // copy first 64 bytes of data -> should remove padding
+        memcpy(decrypted_message, decrypted_packet->data ,64); 
+        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key_start, decrypted_message) != 0) {
+            print_debug("Failed to decrypt message");
+            return -1;
+        }
+
+        write_packet(DECODE_MSG, decrypted_message, frame_size);
+        return 0;
+    } else {
+        STATUS_LED_RED();
+        sprintf(output_buf, "Receiving unsubscribed channel data. Channel: %u", decrypted_packet->channel);
+        print_debug(output_buf);
+        return -1;
+    }
 }
+
+
+
+
+
 
 /** @brief Initializes peripherals for system boot.
 */
@@ -480,66 +532,79 @@ void crypto_example(void) {
  *********************** MAIN LOOP ************************
  **********************************************************/
 
-int main(void) {
-    char output_buf[128] = {0};
-    uint8_t uart_buf[100];
-    msg_type_t cmd;
-    int result;
-    uint16_t pkt_len;
-
-    // initialize the device
-    init();
-
-    print_debug("Decoder Booted!\n");
-
-    // process commands forever
-    while (1) {
-        print_debug("Ready\n");
-
-        STATUS_LED_GREEN();
-
-        result = read_packet(&cmd, uart_buf, &pkt_len);
-        STATUS_LED_PURPLE();
-        if (result < 0) {
-            STATUS_LED_ERROR();
-            print_error("Failed to receive cmd from host\n");
-            continue;
-        }
-
-        // Handle the requested command
-        switch (cmd) {
-
-        // Handle list command
-        case LIST_MSG:
-            STATUS_LED_CYAN();
-
-            #ifdef CRYPTO_EXAMPLE
-                // Run the crypto example
-                // TODO: Remove this from your design
-                crypto_example();
-            #endif // CRYPTO_EXAMPLE
-
-            list_channels();
-            break;
-
-        // Handle decode command
-        case DECODE_MSG:
-            STATUS_LED_PURPLE();
-            decode(pkt_len, (frame_packet_t *)uart_buf);
-            break;
-
-        // Handle subscribe command
-        case SUBSCRIBE_MSG:
-            STATUS_LED_YELLOW();
-            update_subscription(pkt_len, (subscription_update_packet_t *)uart_buf);
-            break;
-
-        // Handle bad command
-        default:
-            STATUS_LED_ERROR();
-            sprintf(output_buf, "Invalid Command: %c\n", cmd);
-            print_error(output_buf);
-            break;
-        }
-    }
-}
+ #include <stdio.h>
+ #include <stdint.h>
+ 
+ int main(void) {
+     char output_buf[128] = {0}; // Buffer for formatted debug messages
+     uint8_t uart_buf[100];
+     msg_type_t cmd;
+     int result;
+     uint16_t pkt_len;
+ 
+     // Initialize the device
+     init();
+ 
+     // Debug: Boot message
+     print_debug("Decoder Booted!");
+ 
+     // Print size of frame_packet_t
+     sprintf(output_buf, "Size of frame_packet_t: %d bytes", (int)sizeof(frame_packet_t));
+     print_debug(output_buf);
+ 
+     // Print size of pkt_len
+     sprintf(output_buf, "Size of pkt_len: %d bytes", (int)sizeof(pkt_len));
+     print_debug(output_buf);
+ 
+     // Process commands forever
+     while (1) {
+         print_debug("Ready");
+ 
+         //STATUS_LED_GREEN();
+         STATUS_LED_WHITE();
+ 
+         result = read_packet(&cmd, uart_buf, &pkt_len);
+ 
+         // Debug: Print command received
+         sprintf(output_buf, "Received Command: %d", cmd);
+         print_debug(output_buf);
+ 
+         // Debug: Print packet length
+         sprintf(output_buf, "Packet Length: %d bytes", pkt_len);
+         print_debug(output_buf);
+ 
+         if (result < 0) {
+             STATUS_LED_ERROR();
+             print_error("Failed to receive cmd from host");
+             continue;
+         }
+ 
+         // Handle the requested command
+         switch (cmd) {
+         case LIST_MSG:
+             STATUS_LED_CYAN();
+             print_debug("Executing: LIST_MSG");
+             list_channels();
+             break;
+ 
+         case DECODE_MSG:
+             STATUS_LED_PURPLE();
+             print_debug("Executing: DECODE_MSG");
+             decode(pkt_len, (frame_packet_t *)uart_buf);
+             break;
+ 
+         case SUBSCRIBE_MSG:
+             STATUS_LED_YELLOW();
+             print_debug("Executing: SUBSCRIBE_MSG");
+             update_subscription(pkt_len, (subscription_update_packet_t *)uart_buf);
+             break;
+ 
+         default:
+             STATUS_LED_ERROR();
+             sprintf(output_buf, "Invalid Command: %c", cmd);
+             print_error(output_buf);
+             break;
+         }
+     }
+ }
+ 
