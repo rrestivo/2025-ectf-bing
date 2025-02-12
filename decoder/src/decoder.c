@@ -254,7 +254,8 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
 
     // Decrypt the subscription update
     uint8_t decrypted_data[sizeof(subscription_update_packet_t)];
-    uint8_t encryption_key[AES_KEY_SIZE] = {0};  // Replace with actual key retrieval
+    uint8_t encryption_key[AES_KEY_SIZE];
+    retrieve_encryption_key(encryption_key, AES_KEY_SIZE); // Need to implement this function that Retrieves the encryption key from flash
 
     if (decrypt_subscription(encrypted_update, pkt_len, encryption_key, decrypted_data) < 0) {
         print_error("Decryption failed: invalid subscription update");

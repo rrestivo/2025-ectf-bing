@@ -40,7 +40,7 @@ def gen_subscription(
     # Load the json of the secrets file
     secrets = json.loads(secrets)
     
-    encryption_key = secrets.get("encryption_key") 
+    encryption_key = bytes.fromhex(secrets.get("encryption_key")) 
     
     if not encryption_key:
         raise ValueError("Missing 'encryption_key' in secrets file.")
