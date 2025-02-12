@@ -64,6 +64,7 @@ def gen_subscription(
     # Please note that the secrets are READ ONLY at this sage!
 
     # Pack the subscription. This will be sent to the decoder with ectf25.tv.subscribe
+    # The format is: IV (12 Bytes) + Ciphertext(24 Bytes) + Auth Tag (16 Bytes)
     return iv + ciphertext + auth_tag
 
 
