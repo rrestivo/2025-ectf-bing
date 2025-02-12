@@ -317,47 +317,81 @@ uint8_t* read_key_from_file() {
  *
  * @return 0 if successful, -1 if data is from unsubscribed channel.
  */
+// int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
+//     uint8_t *key = read_key_from_file();
+//     if (key == NULL) {
+//         STATUS_LED_YELLOW();
+//         fprintf(stderr, "Failed to read encryption key\n");
+//         return -1;
+//     }
+//     STATUS_LED_CYAN();
+//     uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
+//     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
+//     char output_buf[128] = {0};
+
+//     // Decrypt the entire frame using the extracted key
+//     if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
+//         print_error("Failed to decrypt frame\n");
+//         free(key);
+//         return -1; // Drop the packet if decryption fails
+//     }
+
+//     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
+//     uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+
+//     // Check subscription validity
+//     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
+//         // Decrypt the message part of the frame
+//         if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
+//             print_error("Failed to decrypt message\n");
+//             free(key);
+//             return -1;
+//         }
+
+//         write_packet(DECODE_MSG, decrypted_message, frame_size);
+//         free(key);
+//         return 0;
+//     } else {
+//         STATUS_LED_RED();
+//         sprintf(output_buf, "Receiving unsubscribed channel data. %u\n", decrypted_packet->channel);
+//         print_error(output_buf);
+//         free(key);
+//         return -1;
+//     }
+
+    
+// }
+
+
 int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
-    uint8_t *key = read_key_from_file();
-    if (key == NULL) {
-        STATUS_LED_YELLOW();
-        fprintf(stderr, "Failed to read encryption key\n");
-        return -1;
-    }
-    STATUS_LED_CYAN();
-    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
-    uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
     char output_buf[128] = {0};
+    uint16_t frame_size;
+    channel_id_t channel;
 
-    // Decrypt the entire frame using the extracted key
-    if (decrypt_sym((uint8_t *)new_frame, sizeof(frame_packet_t), key, decrypted_frame) != 0) {
-        print_error("Failed to decrypt frame\n");
-        free(key);
-        return -1; // Drop the packet if decryption fails
-    }
+    // Frame size is the size of the packet minus the size of non-frame elements
+    frame_size = pkt_len - (sizeof(new_frame->channel) + sizeof(new_frame->timestamp));
+    channel = new_frame->channel;
 
-    frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
-    uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+    // The reference design doesn't use the timestamp, but you may want to in your design
+    // timestamp_t timestamp = new_frame->timestamp;
 
-    // Check subscription validity
-    if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
-        // Decrypt the message part of the frame
-        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
-            print_error("Failed to decrypt message\n");
-            free(key);
-            return -1;
-        }
-
-        write_packet(DECODE_MSG, decrypted_message, frame_size);
-        free(key);
-        return 0;
-    } else {
-        STATUS_LED_RED();
-        sprintf(output_buf, "Receiving unsubscribed channel data. %u\n", decrypted_packet->channel);
-        print_error(output_buf);
-        free(key);
-        return -1;
-    }
+    // Check that we are subscribed to the channel...
+    print_debug("Checking subscription\n");
+    // if (is_subscribed(channel)) {
+    //     print_debug("Subscription Valid\n");
+    //     /* The reference design doesn't need any extra work to decode, but your design likely will.
+    //     *  Do any extra decoding here before returning the result to the host. */
+    //     write_packet(DECODE_MSG, new_frame->data, frame_size);
+    //     return 0;
+    // } else {
+    //     STATUS_LED_RED();
+    //     sprintf(
+    //         output_buf,
+    //         "Receiving unsubscribed channel data.  %u\n", channel);
+    //     print_error(output_buf);
+    //     return -1;
+    //}
+    return -1;
 }
 
 /** @brief Initializes peripherals for system boot.
@@ -465,7 +499,7 @@ int main(void) {
         STATUS_LED_GREEN();
 
         result = read_packet(&cmd, uart_buf, &pkt_len);
-
+        STATUS_LED_PURPLE();
         if (result < 0) {
             STATUS_LED_ERROR();
             print_error("Failed to receive cmd from host\n");

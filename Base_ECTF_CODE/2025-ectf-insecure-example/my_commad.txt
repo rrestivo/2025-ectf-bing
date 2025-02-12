@@ -1,0 +1,14 @@
+ python3.11 -m venv .venv --prompt shanks_elbaf
+raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/Base_ECTF_CODE/2025-ectf-insecure-example$ source .venv/bin/activate
+
+docker run --rm -v ./decoder/:/decoder -v ./global.secrets:/global.secrets:ro -v ./deadbeef_build:/out -e DECODER_ID=0xdeadbeef build-decoder
+
+
+port : /dev/ttyACM0
+
+python3.11 -m ectf25.utils.tester --port /dev/ttyACM0 -s global.secrets rand -c 1 -f 64
+
+python3.11 -m ectf25.tv.subscribe deadbeef_c1.sub /dev/ttyACM0
+
+
+python3.11 -m ectf25.utils.flash ./deadbeef_build/max78000.bin /dev/ttyACM1

@@ -242,3 +242,50 @@ raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/2025_ECTF/2025-ectf-bing/design/ec
 2025-02-07 14:53:56.560 | INFO     | __main__:__init__:47 - Encoder initialized with allowed channels: [0, 1, 2, 3, 4, 5, 6, 7, 8]
 2025-02-07 14:53:56.560 | INFO     | __main__:encode:114 - Encoding started for Channel 100 at Timestamp 3
 2025-02-07 14:53:56.561 | ERROR    | __main__:_derive_outer_key:58 - Unauthorized channel 100 attempted!
+
+
+## -----------------------------------------------------------------
+
+Key Benefits of HKDF
+✅ Prevents Key Reuse: Each encryption session has a unique key.
+✅ Enhances Security: Derives strong, unpredictable keys from a single master key.
+✅ Supports Key Rotation: Enables time-based encryption keys.
+
+🔴 Possible Risks and Weaknesses
+Despite its security, this system has some potential risks:
+
+1️ Predictable IV (Initialization Vector)
+The IV is fixed to b'\x00' * 16, making it reused across different messages.
+🔹 Risk: CFB mode relies on a unique IV for each message. A repeated IV can lead to plaintext recovery attacks.
+ Fix: Use os.urandom(16) to generate a random IV.
+2️ Time-Based Key Derivation Weakness
+If an attacker can predict the time window, they can precompute the outer key.
+ Fix: Increase the rotation interval randomness or use a secure timestamping mechanism.
+3️ Secrets Storage Risk
+The master key is stored in a JSON file.
+🔹 Risk: If an attacker accesses this secrets file, they can derive all encryption keys.
+Fix: Store the master key in a secure hardware module (HSM).
+4️ No Integrity Check on Encrypted Frames
+AES-CFB mode does not provide integrity protection.
+ Risk: A malicious user could modify encrypted messages without detection.
+ Fix: Use AES-GCM (Galois Counter Mode) which provides authenticated encryption.
+
+
+### -----------------------------------------------------------------
+
+
+How Does the Encoder and Decoder Work with Blockchain?
+Since blockchain timestamps are publicly accessible and immutable, both the encoder and decoder can independently fetch the same blockchain timestamp from the latest block and use it to derive identical encryption keys.
+
+Step-by-Step Process
+1️. The Encoder:
+
+Fetches the latest blockchain timestamp (e.g., Ethereum block timestamp).
+Uses it to derive an encryption key.
+Encrypts the data and sends it to the receiver.
+
+2️  The Decoder:
+
+Fetches the same blockchain timestamp from the blockchain (publicly available).
+Uses it to derive the same decryption key.
+Decrypts the message successfully without needing to talk to the encoder.

@@ -135,35 +135,38 @@ class Encoder:
         ->returns: The encoded frame, which will be sent to the Decoder
         """
         # Ensure the frame is no more than 64 bytes.
-        if len(frame) > 64:
-            raise ValueError("Frame size must not exceed 64 bytes.")
+        # if len(frame) > 64:
+        #     raise ValueError("Frame size must not exceed 64 bytes.")
 
-        # Pad the frame to exactly 64 bytes.
-        frame = frame.ljust(64, b'\x00')
+        # # Pad the frame to exactly 64 bytes.
+        # frame = frame.ljust(64, b'\x00')
 
-        # For channels other than 0, perform an inner encryption followed by an S-box substitution.
-        if channel == 0:
-            processed_frame = frame
-        else:
-            # Inner encryption using AES-128 in CFB mode with a fixed IV (all zeros).
-            fixed_iv = b'\x00' * 16
+        # # For channels other than 0, perform an inner encryption followed by an S-box substitution.
+        # if channel == 0:
+        #     processed_frame = frame
+        # else:
+        #     # Inner encryption using AES-128 in CFB mode with a fixed IV (all zeros).
+        #     fixed_iv = b'\x00' * 16
             
-            inner_encrypted = self._aes_encrypt(frame, self.key, fixed_iv, prepend_iv=False)
-            # Apply the AES S-box to the inner ciphertext.
-            processed_frame = self._apply_sbox(inner_encrypted)
+        #     inner_encrypted = self._aes_encrypt(frame, self.key, fixed_iv, prepend_iv=False)
+        #     # Apply the AES S-box to the inner ciphertext.
+        #     processed_frame = self._apply_sbox(inner_encrypted)
 
-        # Construct the header: 4-byte channel and 8-byte timestamp.
-        header = struct.pack("<IQ", channel, timestamp)
+        # # Construct the header: 4-byte channel and 8-byte timestamp.
+        # header = struct.pack("<IQ", channel, timestamp)
 
-        # Create the complete packet (header + processed frame).
-        packet = header + processed_frame  # 12 bytes header + 64 bytes frame = 76 bytes total.
+        # # Create the complete packet (header + processed frame).
+        # packet = header + processed_frame  # 12 bytes header + 64 bytes frame = 76 bytes total.
 
-        # Outer encryption: encrypt the entire packet with AES-128 in CFB mode using a random IV.
-        random_iv = os.urandom(16)
-        final_encrypted = self._aes_encrypt(packet, self.key, random_iv, prepend_iv=True)
-        # The final encrypted frame is: 16-byte IV + 76-byte ciphertext = 92 bytes total.
+        # # Outer encryption: encrypt the entire packet with AES-128 in CFB mode using a random IV.
+        # random_iv = os.urandom(16)
+        # final_encrypted = self._aes_encrypt(packet, self.key, random_iv, prepend_iv=True)
+        # # The final encrypted frame is: 16-byte IV + 76-byte ciphertext = 92 bytes total.
 
-        return final_encrypted
+
+        # return final_encrypted
+        return struct.pack("<IQ", channel, timestamp) + frame
+        
 
 
 def main():
