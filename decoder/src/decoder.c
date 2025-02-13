@@ -263,8 +263,10 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
     // uint8_t encryption_key[AES_KEY_SIZE];
     //retrieve_encryption_key(encryption_key, AES_KEY_SIZE); // Need to implement this function that Retrieves the encryption key from flash
     uint8_t encryption_key[AES_KEY_SIZE] = {
-        0x29, 0x28, 0x51, 0x2e, 0xab, 0x0d, 0x36, 0x99,
-        0x49, 0x47, 0xfe, 0x32, 0xd1, 0x71, 0x44, 0x7a
+        0xdb, 0x0a, 0xcc, 0x04,
+        0xc5, 0x4d, 0xde, 0xc2,
+        0x4e, 0x30, 0x2f, 0x26,
+        0xa3, 0x98, 0x56, 0x95
     }; // Hardcoded the key for now
 
     if (decrypt_subscription((uint8_t *)update, pkt_len, encryption_key, decrypted_data) < 0) {
