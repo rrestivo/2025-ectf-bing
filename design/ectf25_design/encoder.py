@@ -40,12 +40,11 @@ class Encoder:
         self.some_secrets = secrets["some_secrets"]
     
     def _encrypt(self, data: bytes) -> bytes:
-        """Encrypt data with AES-128 ECB and automatic PKCS#7 padding."""
         cipher = Cipher(algorithms.AES(self.key), modes.ECB(), backend=default_backend())
         encryptor = cipher.encryptor()
-        padder = padding.PKCS7(algorithms.AES.block_size).padder()
-        padded_data = padder.update(data) + padder.finalize()
-        encrypted_data = encryptor.update(padded_data) + encryptor.finalize()
+        # padder = padding.PKCS7(algorithms.AES.block_size).padder()
+        # padded_data = padder.update(data) + padder.finalize()
+        encrypted_data = encryptor.update(data) + encryptor.finalize()
         return encrypted_data
     
     def encode(self, channel: int, frame: bytes, timestamp: int) -> bytes:
@@ -69,18 +68,39 @@ class Encoder:
         # TODO: encode the satellite frames so that they meet functional and
         #  security requirements
         
+        print(f"Encoding frame: Channel = {channel}, Timestamp = {timestamp}")
+
         if len(frame) > 64:
             raise ValueError("Frame size must not exceed 64 bytes.")
+        print(f"frame length before encryption ---> {len(frame)}")
+        # if channel > 4:
+        #     raise ValueError("Channel size must be 4 bytes max")
+        # if timestamp > 8:
+        #     raise ValueError("timestamp size must be 4 bytes max")
+        
+
+        # First round of encryption on just the frame, without padding since it's already 64 bytes
+        encrypted_frame = self._encrypt(frame)
+        print(f"First encryption complete. Length of encrypted frame: {len(encrypted_frame)} bytes")
 
         # Pack channel and timestamp into header
         header = struct.pack("<IQ", channel, timestamp)
+        print(f"Packed Header: {header.hex()} (Channel = {channel}, Timestamp = {timestamp})")
+        
+        # Prepare the full packet with the encrypted frame
+        full_packet = header + encrypted_frame
+        print(f"FULL PACKET LENGTH WITHOUT PADDING -> {len(full_packet)}")
+        # Padding added to make the total packet size exactly 80 bytes
+        total_length_with_padding = 80
+        current_length = len(full_packet)
+        padding_length = total_length_with_padding - current_length
+        full_packet += b'\x00' * padding_length
 
-        # Concatenate header and frame to form the full packet
-        full_packet = header + frame
-
-        # Encrypt the entire packet with padding
+        print(f"Full packet length before final encryption (including padding): {len(full_packet)} bytes")
+        # Second round of encryption on the entire packet, no additional padding needed as it's set to 80 bytes
         encrypted_packet = self._encrypt(full_packet)
-
+        print(f"Final encryption complete. Length of encrypted packet: {len(encrypted_packet)} bytes")
+        
         return encrypted_packet
         #return struct.pack("<IQ", channel, timestamp) + frame
 

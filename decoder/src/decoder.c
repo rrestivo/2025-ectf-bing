@@ -328,13 +328,9 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     char output_buf[128] = {0};
     
     /********************************** DEBUG *****************************************************/
-    char debug_buf[128];
+    char debug_buf[128] = {0};
     // Debug: Received packet length
     sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
-    print_debug(debug_buf);
-
-    // Print actual frame size
-    sprintf(debug_buf, "Expected frame_packet_t size: %d bytes", (int)sizeof(frame_packet_t));
     print_debug(debug_buf);
     /********************************** DEBUG END*****************************************************/
 
@@ -352,35 +348,27 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     // read until key start then moves pointer length of keystart in bytes to start of the key 
     // Move the pointer to the start of the key value
     key_start += strlen("\"some_secrets\": \"");
-    if (*key_start == NULL) {
-        STATUS_LED_YELLOW();
-        print_debug("Failed to set hardcoded encryption key");
-        return -1;
+
+    // Convert hex key to binary
+    uint8_t key[16]; // 128-bit key (AES key size typically)
+    char key_hex[33]; // Temporary buffer for the key hex string
+    strncpy(key_hex, key_start, 32); // Copy hex string to local variable
+    key_hex[32] = '\0'; // Null-terminate string
+
+    // Convert hex string to binary
+    for (int i = 0; i < 16; i++) {
+        sscanf(key_hex + 2 * i, "%2hhx", &key[i]);
     }
 
-    // Extract the key directly without converting to binary
-    char key_hex[33];  // 32 characters for the key plus a null terminator
-    strncpy(key_hex, key_start, 32);
-    key_hex[32] = '\0';  // Ensure null termination
-
-    // Display the extracted key
     sprintf(debug_buf, "Encryption Key: %s", key_hex);
     print_debug(debug_buf);
 
     STATUS_LED_PURPLE();
     print_debug("------ Key successfully read ------");
     /********************************** KEY READ END *****************************************************/
-    print_debug("------ we are here before the light change to cyan after reading the key ------");
-    //STATUS_LED_CYAN();
-
-    print_debug("----------------------- we are after color change -------------------------");
-
-    // Debugging size before decryption
-    sprintf(debug_buf, "Size before decrypt_sym: %d bytes", pkt_len);
-    print_debug(debug_buf);
 
     print_debug("------ Entering decrypt_sym function ------");
-    int dec_ret = decrypt_sym((uint8_t *)new_frame, pkt_len, key_start, decrypted_frame);
+    int dec_ret = decrypt_sym((uint8_t *)new_frame, pkt_len, key, decrypted_frame);
     if(dec_ret == -1)print_debug("__________PACKET LENGTH ERROR________________");
 
     if (dec_ret != 0) {
@@ -390,43 +378,47 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
 
     print_debug("------ Leaving decrypt_sym function ------");
 
-    // Handle Extra Data or IV Skipping
-    // uint8_t* frame_start = decrypted_frame;
-    
-    // // If pkt_len is larger than frame_packet_t, IV or extra data is present
-    // if (pkt_len > sizeof(frame_packet_t)) {
-    //     int extra_bytes = pkt_len - sizeof(frame_packet_t);
-    //     frame_start += extra_bytes;  // Move past the extra data
-    //     sprintf(output_buf, "Skipping %d extra bytes (IV or padding)", extra_bytes);
-    //     print_debug(output_buf);
-    // }
+    // Print the first 12 bytes as hex
+    char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
+    for (int i = 0; i < 12; i++) {
+        sprintf(&header_hex[i * 2], "%02x", decrypted_frame[i]);
+    }
+    sprintf(debug_buf, "Decrypted Header: %s", header_hex);
+    print_debug(debug_buf);
+
+
+
 
     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
+    memcpy(decrypted_message, decrypted_packet->data, sizeof(decrypted_packet->data));
     uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
 
 
 
-
-    sprintf(debug_buf, "channel ->  %d, timestamp -> %d", decrypted_packet->channel, decrypted_packet->timestamp);
-    print_debug(debug_buf);
-    sprintf(debug_buf, "Calculated Frame Size: %d bytes", frame_size);
+    /********************************CHECK IF ENCRYPTION SUCCESSFUL************************************************ */
+    sprintf(debug_buf, "channel ->  %i timestamp -> %llu", decrypted_packet->channel, decrypted_packet->timestamp);
     print_debug(debug_buf);
 
+
+
+
+    /******************************** DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
+    print_debug("Data copied to decrypted_message.");
+    sprintf(debug_buf, "Trimed Frame Size: %d bytes", sizeof(decrypted_packet->data));
+    print_debug(debug_buf);
     // Debug: Check alignment issue
-    if (sizeof(frame_packet_t) % 16 != 0) {
+    if (sizeof(decrypted_packet->data) % 16 != 0) {
         print_debug("FRAME PACKET NOT DIV BY 16 ERROR!!!!");
     }
 
     if (sizeof(frame_packet_t) == 0) {
         print_debug("----------------- Frame is empty error ----------------------!!!!");
     }
-
+    /********************************  END DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
     //  Check subscription validity
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
         print_debug("------ Valid Subscription Detected ------");
-        // copy first 64 bytes of data -> should remove padding
-        memcpy(decrypted_message, decrypted_packet->data ,64); 
-        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key_start, decrypted_message) != 0) {
+        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
         }
