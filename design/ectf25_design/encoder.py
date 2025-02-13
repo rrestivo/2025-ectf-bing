@@ -40,6 +40,7 @@ class Encoder:
         self.some_secrets = secrets["some_secrets"]
     
     def _encrypt(self, data: bytes) -> bytes:
+        print(f"encoder key-> {self.key.hex()}")
         cipher = Cipher(algorithms.AES(self.key), modes.ECB(), backend=default_backend())
         encryptor = cipher.encryptor()
         # padder = padding.PKCS7(algorithms.AES.block_size).padder()
