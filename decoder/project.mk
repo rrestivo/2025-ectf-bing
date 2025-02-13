@@ -23,6 +23,8 @@ IPATH+=inc/
 IPATH+=/secrets
 VPATH+=src/
 
+
+
 # ****************** eCTF Bootloader *******************
 # DO NOT REMOVE
 LINKERFILE=firmware.ld
@@ -40,3 +42,5 @@ ENTRY=firmware_startup
 
 # Enable Crypto Example
 CRYPTO_EXAMPLE=1
+PROJ_CFLAGS += -DHAVE_AESGCM
+PROJ_CFLAGS += -DWOLFSSL_AES_DIRECT

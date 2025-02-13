@@ -45,7 +45,6 @@ def gen_subscription(
     if not encryption_key:
         raise ValueError("Missing 'encryption_key' in secrets file.")
 
-    encryption_key = encryption_key.encode()
     
     iv = os.urandom(12)
     plaintext = struct.pack("<IQQI", device_id, start, end, channel)

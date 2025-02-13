@@ -39,7 +39,7 @@ def gen_secrets(channels: list[int]) -> bytes:
     # The secrets file will never be shared with attackers
     
     encryption_key = secrets.token_bytes(16).hex()
-    secrets = {
+    secrets_data = {
         "channels": channels,
         "encryption_key": encryption_key,
     }
@@ -47,7 +47,7 @@ def gen_secrets(channels: list[int]) -> bytes:
     # NOTE: if you choose to use JSON for your file type, you will not be able to
     # store binary data, and must either use a different file type or encode the
     # binary data to hex, base64, or another type of ASCII-only encoding
-    return json.dumps(secrets).encode()
+    return json.dumps(secrets_data).encode()
 
 
 def parse_args():

@@ -23,9 +23,13 @@
 #include "host_messaging.h"
 #include "simple_uart.h"
 
-#include "wolfssl/wolfcrypt/aes.h"  // Use WolfSSL for AES-GCM
+#define HAVE_AESGCM
+#define WOLFSSL_AES_DIRECT
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/aes.h>
+
 #define AES_KEY_SIZE 16  // 128-bit key
-#define AES_IV_SIZE 12   // 12-byte IV for AES-GCM
+#define AES_IV_SIZE1 12   // 12-byte IV for AES-GCM
 #define AES_TAG_SIZE 16  // 16-byte authentication tag
 
 /* Code between this #ifdef and the subsequent #endif will
@@ -187,22 +191,24 @@ void boot_flag(void) {
  *  @return 0 on success, -1 on failure (e.g., authentication failure)
  */
 int decrypt_subscription(const uint8_t *encrypted_data, size_t encrypted_len, const uint8_t *key, uint8_t *decrypted_data) {
-    if (encrypted_len < (AES_IV_SIZE + AES_TAG_SIZE)) {
+    if (encrypted_len < (AES_IV_SIZE1 + AES_TAG_SIZE)) {
         return -1; // Not enough data
     }
 
-    uint8_t iv[AES_IV_SIZE];
+    uint8_t iv[AES_IV_SIZE1];
     uint8_t tag[AES_TAG_SIZE];
-    size_t ciphertext_len = encrypted_len - (AES_IV_SIZE + AES_TAG_SIZE);
+    size_t ciphertext_len = encrypted_len - (AES_IV_SIZE1 + AES_TAG_SIZE);
 
-    memcpy(iv, encrypted_data, AES_IV_SIZE);  // Extract IV
-    memcpy(tag, encrypted_data + AES_IV_SIZE + ciphertext_len, AES_TAG_SIZE);  // Extract authentication tag
+    memcpy(iv, encrypted_data, AES_IV_SIZE1);  // Extract IV
+    memcpy(tag, encrypted_data + AES_IV_SIZE1 + ciphertext_len, AES_TAG_SIZE);  // Extract authentication tag
 
     Aes aes;
+    memset(&aes, 0, sizeof(Aes));
     wc_AesInit(&aes, NULL, INVALID_DEVID);
+    
     wc_AesGcmSetKey(&aes, key, AES_KEY_SIZE);
 
-    int ret = wc_AesGcmDecrypt(&aes, decrypted_data, encrypted_data + AES_IV_SIZE, ciphertext_len, iv, AES_IV_SIZE, tag, AES_TAG_SIZE, NULL, 0);
+    int ret = wc_AesGcmDecrypt(&aes, decrypted_data, encrypted_data + AES_IV_SIZE1, ciphertext_len, iv, AES_IV_SIZE1, tag, AES_TAG_SIZE, NULL, 0);
 
     wc_AesFree(&aes);
 
@@ -254,15 +260,19 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
 
     // Decrypt the subscription update
     uint8_t decrypted_data[sizeof(subscription_update_packet_t)];
-    uint8_t encryption_key[AES_KEY_SIZE];
-    retrieve_encryption_key(encryption_key, AES_KEY_SIZE); // Need to implement this function that Retrieves the encryption key from flash
+    // uint8_t encryption_key[AES_KEY_SIZE];
+    //retrieve_encryption_key(encryption_key, AES_KEY_SIZE); // Need to implement this function that Retrieves the encryption key from flash
+    uint8_t encryption_key[AES_KEY_SIZE] = {
+        0x29, 0x28, 0x51, 0x2e, 0xab, 0x0d, 0x36, 0x99,
+        0x49, 0x47, 0xfe, 0x32, 0xd1, 0x71, 0x44, 0x7a
+    }; // Hardcoded the key for now
 
-    if (decrypt_subscription(encrypted_update, pkt_len, encryption_key, decrypted_data) < 0) {
+    if (decrypt_subscription((uint8_t *)update, pkt_len, encryption_key, decrypted_data) < 0) {
         print_error("Decryption failed: invalid subscription update");
         STATUS_LED_CYAN();
         return -1;
     }
-
+    memcpy(update, decrypted_data, sizeof(subscription_update_packet_t));
     int i;
 
     if (update->channel == EMERGENCY_CHANNEL) {
