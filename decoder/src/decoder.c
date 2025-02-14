@@ -264,50 +264,50 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
  * 
  * @return A pointer to the key if successful, NULL if failed.
  */
-// uint8_t* read_key_from_file() {
-//     FILE *file = fopen("/global.secrets", "r");
-//     if (file == NULL) {
-//         perror("Failed to open file");
-//         return NULL;
-//     }
+uint8_t* read_key_from_file() {
+    FILE *file = fopen("/global.secrets", "r");
+    if (file == NULL) {
+        perror("Failed to open file");
+        return NULL;
+    }
 
-//     fseek(file, 0, SEEK_END);
-//     long fsize = ftell(file);
-//     fseek(file, 0, SEEK_SET);
+    fseek(file, 0, SEEK_END);
+    long fsize = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-//     char *buffer = malloc(fsize + 1);
-//     if (buffer == NULL) {
-//         fprintf(stderr, "Memory allocation failed\n");
-//         fclose(file);
-//         return NULL;
-//     }
+    char *buffer = malloc(fsize + 1);
+    if (buffer == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        fclose(file);
+        return NULL;
+    }
 
-//     fread(buffer, 1, fsize, file);
-//     buffer[fsize] = '\0';
-//     fclose(file);
+    fread(buffer, 1, fsize, file);
+    buffer[fsize] = '\0';
+    fclose(file);
 
-//     char *key_start = strstr(buffer, "\"some_secrets\": \"");
-//     if (key_start == NULL) {
-//         fprintf(stderr, "Key not found\n");
-//         free(buffer);
-//         return NULL;
-//     }
+    char *key_start = strstr(buffer, "\"some_secrets\": \"");
+    if (key_start == NULL) {
+        fprintf(stderr, "Key not found\n");
+        free(buffer);
+        return NULL;
+    }
 
-//     key_start += strlen("\"some_secrets\": \"");
-//     uint8_t *key = malloc(KEY_SIZE + 1);
-//     if (key == NULL) {
-//         fprintf(stderr, "Memory allocation failed for key\n");
-//         free(buffer);
-//         return NULL;
-//     }
+    key_start += strlen("\"some_secrets\": \"");
+    uint8_t *key = malloc(KEY_SIZE + 1);
+    if (key == NULL) {
+        fprintf(stderr, "Memory allocation failed for key\n");
+        free(buffer);
+        return NULL;
+    }
 
-//     strncpy((char *)key, key_start, KEY_SIZE);
-//     key[KEY_SIZE] = '\0';
+    strncpy((char *)key, key_start, KEY_SIZE);
+    key[KEY_SIZE] = '\0';
 
-//     free(buffer);
-//     buffer = NULL;
-//     return key;
-// }
+    free(buffer);
+    buffer = NULL;
+    return key;
+}
 
 
 
@@ -345,39 +345,20 @@ int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
 
     /********************************** KEY READ *****************************************************/
     // Hardcoded JSON data with the new secret key
-    const char* json_data = "{\"channels\": [0, 1, 2, 3, 4, 5, 6, 7, 8], \"some_secrets\": \"a4359d15b2e12213ca1fb8a22efcac31\"}";
-    const char* key_start = strstr(json_data, "\"some_secrets\": \"");
-
-    if (key_start == NULL) {
-        STATUS_LED_YELLOW();
-        print_debug("Key not found in hardcoded JSON");
-        return -1;
+    uint8_t * str = read_key_from_file();
+    uint8_t key[16];
+    int increment = 2;
+    int place = 1;
+    for(int i =1; i <= KEY_SIZE; i=i+increment){
+        char newByte[3];
+        sscanf((const char *)str+i-1, "%c", &newByte[0]);
+        sscanf((const char *)str+i, "%c", &newByte[1]);
+        newByte[2] = '\0';
+        sscanf(newByte, "%hhx", &key[i-place]);
+        place++;
     }
-
-    // read until key start then moves pointer length of keystart in bytes to start of the key 
-    // Move the pointer to the start of the key value
-    key_start += strlen("\"some_secrets\": \"");
-
-    // Convert hex key to binary
-    uint8_t key[] = {0xa4, 0x35, 0x9d, 0x15, 0xb2, 0xe1, 0x22, 0x13, 0xca, 0x1f, 0xb8, 0xa2, 0x2e, 0xfc, 0xac, 0x31}; // 128-bit key (AES key size typically)
-    char key_hex[33]; // Temporary buffer for the key hex string
-    strncpy(key_hex, key_start, 32); // Copy hex string to local variable
-    key_hex[32] = '\0'; // Null-terminate string
-
-    // Convert hex string to binary
-    //for (int i = 0; i < 16; i++) {
-    //    sscanf(key_hex + 2 * i, "%2hhx", &key[i]);
-    //}
-
-    sprintf(debug_buf, "Encryption Key: %s", key_hex);
-    print_debug(debug_buf);
-
-    STATUS_LED_PURPLE();
-    print_debug("Key in hex: "); 
-    print_hex_debug(key, 16);
-    print_debug("------ Key successfully read ------");
     /********************************** KEY READ END *****************************************************/
-
+    
 
     ///////////////////////////// FIRST DECRYPT //////////////////////////////////////////////////////////////////////////////
     print_debug("------ Entering decrypt_sym function ------");
