@@ -74,12 +74,7 @@ class Encoder:
         if len(frame) > 64:
             raise ValueError("Frame size must not exceed 64 bytes.")
         print(f"frame length before encryption ---> {len(frame)}")
-        # if channel > 4:
-        #     raise ValueError("Channel size must be 4 bytes max")
-        # if timestamp > 8:
-        #     raise ValueError("timestamp size must be 4 bytes max")
-        
-
+        frame = frame.ljust(64, b'\x00')
         # First round of encryption on just the frame, without padding since it's already 64 bytes
         encrypted_frame = self._encrypt(frame)
         print(f"First encryption complete. Length of encrypted frame: {len(encrypted_frame)} bytes")
@@ -102,6 +97,8 @@ class Encoder:
         encrypted_packet = self._encrypt(full_packet)
         print(f"Final encryption complete. Length of encrypted packet: {len(encrypted_packet)} bytes")
         
+        # Print the first 12 bytes of the final packet in hexadecimal format
+        print("First 12 bytes of the encoded packet:", encrypted_packet.hex())
         return encrypted_packet
         #return struct.pack("<IQ", channel, timestamp) + frame
 

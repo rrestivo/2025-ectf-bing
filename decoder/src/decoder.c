@@ -322,10 +322,11 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
  *
  * @return 0 if successful, -1 if data is from unsubscribed channel.
  */
-int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
-    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
+int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
+    uint8_t decrypted_frame[100]; // Buffer to hold the decrypted frame
     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
     char output_buf[128] = {0};
+    
     
     /********************************** DEBUG *****************************************************/
     char debug_buf[128] = {0};
@@ -333,6 +334,14 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
     print_debug(debug_buf);
     /********************************** DEBUG END*****************************************************/
+    memset(debug_buf, 0, sizeof(debug_buf));
+    memcpy(debug_buf, (char *)new_frame, 80);
+    print_debug("PRINT MSG BYTES---->");
+    print_hex_debug(debug_buf, 80);
+
+
+
+
 
     /********************************** KEY READ *****************************************************/
     // Hardcoded JSON data with the new secret key
@@ -350,25 +359,29 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     key_start += strlen("\"some_secrets\": \"");
 
     // Convert hex key to binary
-    uint8_t key[16]; // 128-bit key (AES key size typically)
+    uint8_t key[] = {0xa4, 0x35, 0x9d, 0x15, 0xb2, 0xe1, 0x22, 0x13, 0xca, 0x1f, 0xb8, 0xa2, 0x2e, 0xfc, 0xac, 0x31}; // 128-bit key (AES key size typically)
     char key_hex[33]; // Temporary buffer for the key hex string
     strncpy(key_hex, key_start, 32); // Copy hex string to local variable
     key_hex[32] = '\0'; // Null-terminate string
 
     // Convert hex string to binary
-    for (int i = 0; i < 16; i++) {
-        sscanf(key_hex + 2 * i, "%2hhx", &key[i]);
-    }
+    //for (int i = 0; i < 16; i++) {
+    //    sscanf(key_hex + 2 * i, "%2hhx", &key[i]);
+    //}
 
     sprintf(debug_buf, "Encryption Key: %s", key_hex);
     print_debug(debug_buf);
 
     STATUS_LED_PURPLE();
+    print_debug("Key in hex: "); 
+    print_hex_debug(key, 16);
     print_debug("------ Key successfully read ------");
     /********************************** KEY READ END *****************************************************/
 
+
+    ///////////////////////////// FIRST DECRYPT //////////////////////////////////////////////////////////////////////////////
     print_debug("------ Entering decrypt_sym function ------");
-    int dec_ret = decrypt_sym((uint8_t *)new_frame, pkt_len, key, decrypted_frame);
+    int dec_ret = decrypt_sym(new_frame, pkt_len, key, decrypted_frame);
     if(dec_ret == -1)print_debug("__________PACKET LENGTH ERROR________________");
 
     if (dec_ret != 0) {
@@ -381,7 +394,7 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     // Print the first 12 bytes as hex
     char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
     for (int i = 0; i < 12; i++) {
-        sprintf(&header_hex[i * 2], "%02x", decrypted_frame[i]);
+        sprintf(&header_hex[i], "%02x", decrypted_frame[i]);
     }
     sprintf(debug_buf, "Decrypted Header: %s", header_hex);
     print_debug(debug_buf);
@@ -418,6 +431,7 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     //  Check subscription validity
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
         print_debug("------ Valid Subscription Detected ------");
+        ////////////////////////// SECOND DECRYPT ////////////////////////////////////////////////////////////////////////////////////////
         if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
@@ -582,7 +596,7 @@ void crypto_example(void) {
          case DECODE_MSG:
              STATUS_LED_PURPLE();
              print_debug("Executing: DECODE_MSG");
-             decode(pkt_len, (frame_packet_t *)uart_buf);
+             decode(pkt_len, uart_buf);
              break;
  
          case SUBSCRIBE_MSG:
