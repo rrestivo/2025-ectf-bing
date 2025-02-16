@@ -65,6 +65,9 @@
 #define FLASH_STATUS_ADDR ((MXC_FLASH_MEM_BASE + MXC_FLASH_MEM_SIZE) - (2 * MXC_FLASH_PAGE_SIZE))
 
 
+// FLASH KEY
+#define FLASH_KEY_ADDR ((MXC_FLASH_MEM_BASE + MXC_FLASH_MEM_SIZE) - (3 * MXC_FLASH_PAGE_SIZE))
+
 /**********************************************************
  *********** COMMUNICATION PACKET DEFINITIONS *************
  **********************************************************/
@@ -146,6 +149,7 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     if (channel == EMERGENCY_CHANNEL) {
         return 1;
     }
+    
     // Check if the decoder has has a subscription - > might be off by one error -> make sure it is not checking for channel 9
     for (int i = 0; i < MAX_CHANNEL_COUNT; i++) {
 
@@ -254,64 +258,96 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
     write_packet(SUBSCRIBE_MSG, NULL, 0);
     return 0;
 }
+/*************  https://stackoverflow.com/questions/3408706/hexadecimal-string-to-byte-array-in-c  *************** */
+uint8_t* hexToByteArray(char* string) {
 
+    if(string == NULL) 
+       return NULL;
 
+    size_t slength = strlen(string);
+    if((slength % 2) != 0) // must be even
+       return NULL;
 
-/**
- * @brief Reads encryption key from a file.
- * 
- * @note HEAP USED HERE check for UAF
- * 
- * @return A pointer to the key if successful, NULL if failed.
- */
-// uint8_t* read_key_from_file() {
-//     FILE *file = fopen("/global.secrets", "r");
-//     if (file == NULL) {
-//         perror("Failed to open file");
-//         return NULL;
-//     }
+    size_t dlength = slength / 2;
 
-//     fseek(file, 0, SEEK_END);
-//     long fsize = ftell(file);
-//     fseek(file, 0, SEEK_SET);
+    uint8_t* data = malloc(dlength);
+    memset(data, 0, dlength);
 
-//     char *buffer = malloc(fsize + 1);
-//     if (buffer == NULL) {
-//         fprintf(stderr, "Memory allocation failed\n");
-//         fclose(file);
-//         return NULL;
-//     }
+    size_t index = 0;
+    while (index < slength) {
+        char c = string[index];
+        int value = 0;
+        if(c >= '0' && c <= '9')
+          value = (c - '0');
+        else if (c >= 'A' && c <= 'F') 
+          value = (10 + (c - 'A'));
+        else if (c >= 'a' && c <= 'f')
+          value = (10 + (c - 'a'));
+        else {
+          free(data);
+          return NULL;
+        }
 
-//     fread(buffer, 1, fsize, file);
-//     buffer[fsize] = '\0';
-//     fclose(file);
+        data[(index/2)] += value << (((index + 1) % 2) * 4);
 
-//     char *key_start = strstr(buffer, "\"some_secrets\": \"");
-//     if (key_start == NULL) {
-//         fprintf(stderr, "Key not found\n");
-//         free(buffer);
-//         return NULL;
-//     }
+        index++;
+    }
 
-//     key_start += strlen("\"some_secrets\": \"");
-//     uint8_t *key = malloc(KEY_SIZE + 1);
-//     if (key == NULL) {
-//         fprintf(stderr, "Memory allocation failed for key\n");
-//         free(buffer);
-//         return NULL;
-//     }
+    return data;
+}
+/****************************************************************************************************************** */
+void flash_key_from_file() {
+    print_debug("++++++++++++++++++ FLASH KEY +++++++++++++++++++++");
 
-//     strncpy((char *)key, key_start, KEY_SIZE);
-//     key[KEY_SIZE] = '\0';
+    FILE *file = fopen("/global.secrets", "r");
+    if (!file) {
+        print_debug("++++++++++++++++++ FAILED TO OPEN GLOBAL.SECRETS +++++++++++++++++++++");
+        return;
+    }
 
-//     free(buffer);
-//     buffer = NULL;
-//     return key;
-// }
+    fseek(file, 0, SEEK_END);
+    long fsize = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
+    char *buffer = malloc(fsize + 1);
+    if (!buffer) {
+        print_debug("Memory allocation failed");
+        fclose(file);
+        return;
+    }
 
+    fread(buffer, 1, fsize, file);
+    buffer[fsize] = '\0';
+    fclose(file);
+    print_debug("++++++++++++++++++ flashing key from file entered +++++++++++++++++++++");
+    print_debug(buffer);
+    char *key_start = strstr(buffer, "\"some_secrets\": \"");
+    if (!key_start) {
+        print_debug("++++++++++++++++++ KEY NOT FOUND IN GLOBAL.SECRETS +++++++++++++++++++++");
+        free(buffer);
+        return;
+    }
 
+    key_start += strlen("\"some_secrets\": \"");
 
+    // Convert hex key to binary format
+    uint8_t key[KEY_SIZE];
+    for (int i = 0; i < KEY_SIZE; i++) {
+        sscanf(key_start + 2 * i, "%2hhx", &key[i]);
+    }
+
+    free(buffer);
+
+    // Write key to flash memory
+    flash_simple_erase_page(FLASH_KEY_ADDR);
+    flash_simple_write(FLASH_KEY_ADDR, key, KEY_SIZE);
+
+    print_debug("Key flashed to memory successfully.");
+}
+
+void read_key_from_flash(uint8_t *key_buffer) {
+    flash_simple_read(FLASH_KEY_ADDR, key_buffer, KEY_SIZE);
+}
 
 
 /**
@@ -322,11 +358,10 @@ int update_subscription(pkt_len_t pkt_len, subscription_update_packet_t *update)
  *
  * @return 0 if successful, -1 if data is from unsubscribed channel.
  */
-int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
-    uint8_t decrypted_frame[100]; // Buffer to hold the decrypted frame
+int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
+    uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
     uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
     char output_buf[128] = {0};
-    
     
     /********************************** DEBUG *****************************************************/
     char debug_buf[128] = {0};
@@ -334,54 +369,45 @@ int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
     sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
     print_debug(debug_buf);
     /********************************** DEBUG END*****************************************************/
-    memset(debug_buf, 0, sizeof(debug_buf));
-    memcpy(debug_buf, (char *)new_frame, 80);
-    print_debug("PRINT MSG BYTES---->");
-    print_hex_debug(debug_buf, 80);
-
-
-
-
 
     /********************************** KEY READ *****************************************************/
-    // Hardcoded JSON data with the new secret key
-    const char* json_data = "{\"channels\": [0, 1, 2, 3, 4, 5, 6, 7, 8], \"some_secrets\": \"a4359d15b2e12213ca1fb8a22efcac31\"}";
-    const char* key_start = strstr(json_data, "\"some_secrets\": \"");
 
-    if (key_start == NULL) {
-        STATUS_LED_YELLOW();
-        print_debug("Key not found in hardcoded JSON");
-        return -1;
-    }
+    uint8_t key[KEY_SIZE];
+    read_key_from_flash(key);
+    
+    print_debug("***********Using Flash-Stored Key: *************");
+    print_hex_debug(key, KEY_SIZE);
+    
 
     // read until key start then moves pointer length of keystart in bytes to start of the key 
     // Move the pointer to the start of the key value
-    key_start += strlen("\"some_secrets\": \"");
+    //key_start += strlen("\"some_secrets\": \"");
 
     // Convert hex key to binary
-    uint8_t key[] = {0xa4, 0x35, 0x9d, 0x15, 0xb2, 0xe1, 0x22, 0x13, 0xca, 0x1f, 0xb8, 0xa2, 0x2e, 0xfc, 0xac, 0x31}; // 128-bit key (AES key size typically)
-    char key_hex[33]; // Temporary buffer for the key hex string
-    strncpy(key_hex, key_start, 32); // Copy hex string to local variable
-    key_hex[32] = '\0'; // Null-terminate string
+    //uint8_t key[] = {0xa4, 0x35, 0x9d, 0x15, 0xb2, 0xe1, 0x22, 0x13, 0xca, 0x1f, 0xb8, 0xa2, 0x2e, 0xfc, 0xac, 0x31}; // 128-bit key (AES key size typically)
+    // char key_hex[33]; // Temporary buffer for the key hex string
+    // strncpy(key_hex, key_start, 32); // Copy hex string to local variable
+    // key_hex[32] = '\0'; // Null-terminate string
 
     // Convert hex string to binary
     //for (int i = 0; i < 16; i++) {
     //    sscanf(key_hex + 2 * i, "%2hhx", &key[i]);
     //}
 
-    sprintf(debug_buf, "Encryption Key: %s", key_hex);
-    print_debug(debug_buf);
+    // sprintf(debug_buf, "Encryption Key: %s", key_hex);
+    // print_debug(debug_buf);
 
     STATUS_LED_PURPLE();
-    print_debug("Key in hex: "); 
+    print_debug("-------------- Key in hex ---------------: "); 
     print_hex_debug(key, 16);
     print_debug("------ Key successfully read ------");
     /********************************** KEY READ END *****************************************************/
 
 
     ///////////////////////////// FIRST DECRYPT //////////////////////////////////////////////////////////////////////////////
+
     print_debug("------ Entering decrypt_sym function ------");
-    int dec_ret = decrypt_sym(new_frame, pkt_len, key, decrypted_frame);
+    int dec_ret = decrypt_sym((uint8_t *)new_frame, pkt_len, key, decrypted_frame);
     if(dec_ret == -1)print_debug("__________PACKET LENGTH ERROR________________");
 
     if (dec_ret != 0) {
@@ -394,7 +420,7 @@ int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
     // Print the first 12 bytes as hex
     char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
     for (int i = 0; i < 12; i++) {
-        sprintf(&header_hex[i], "%02x", decrypted_frame[i]);
+        sprintf(&header_hex[i * 2], "%02x", decrypted_frame[i]);
     }
     sprintf(debug_buf, "Decrypted Header: %s", header_hex);
     print_debug(debug_buf);
@@ -431,7 +457,6 @@ int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
     //  Check subscription validity
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
         print_debug("------ Valid Subscription Detected ------");
-        ////////////////////////// SECOND DECRYPT ////////////////////////////////////////////////////////////////////////////////////////
         if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
@@ -456,12 +481,18 @@ int decode(pkt_len_t pkt_len, uint8_t* new_frame) {
 */
 void init() {
     int ret;
+    flash_key_from_file();
 
     // Initialize the flash peripheral to enable access to persistent memory
     flash_simple_init();
 
+
     // Read starting flash values into our flash status struct
     flash_simple_read(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
+    
+    print_debug("++++++++++++++++++ flashing key before function call +++++++++++++++++++++");
+
+
     if (decoder_status.first_boot != FLASH_FIRST_BOOT) {
         /* If this is the first boot of this decoder, mark all channels as unsubscribed.
         *  This data will be persistent across reboots of the decoder. Whenever the decoder
@@ -596,7 +627,7 @@ void crypto_example(void) {
          case DECODE_MSG:
              STATUS_LED_PURPLE();
              print_debug("Executing: DECODE_MSG");
-             decode(pkt_len, uart_buf);
+             decode(pkt_len, (frame_packet_t *)uart_buf);
              break;
  
          case SUBSCRIBE_MSG:
