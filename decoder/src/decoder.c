@@ -21,6 +21,9 @@
 #include "mxc_delay.h"
 #include "simple_flash.h"
 #include "host_messaging.h"
+
+#include "secrets.h"
+
 #include <stdlib.h>
 
 #include "simple_uart.h"
@@ -183,6 +186,8 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
 // }
 
 
+
+
 /**********************************************************
  ********************* CORE FUNCTIONS *********************
  **********************************************************/
@@ -296,54 +301,38 @@ uint8_t* hexToByteArray(char* string) {
     return data;
 }
 /****************************************************************************************************************** */
-void flash_key_from_file() {
-    print_debug("++++++++++++++++++ FLASH KEY +++++++++++++++++++++");
+/**
+ * @brief Writes the secret key to flash memory on first boot.
+ */
+void flash_key_on_first_boot() {
+    uint8_t stored_key[KEY_SIZE];
 
-    FILE *file = fopen("/global.secrets", "r");
-    if (!file) {
-        print_debug("++++++++++++++++++ FAILED TO OPEN GLOBAL.SECRETS +++++++++++++++++++++");
-        return;
-    }
+    // Check if a key already exists in flash
+    flash_simple_read(FLASH_KEY_ADDR, stored_key, KEY_SIZE);
 
-    fseek(file, 0, SEEK_END);
-    long fsize = ftell(file);
-    fseek(file, 0, SEEK_SET);
-
-    char *buffer = malloc(fsize + 1);
-    if (!buffer) {
-        print_debug("Memory allocation failed");
-        fclose(file);
-        return;
-    }
-
-    fread(buffer, 1, fsize, file);
-    buffer[fsize] = '\0';
-    fclose(file);
-    print_debug("++++++++++++++++++ flashing key from file entered +++++++++++++++++++++");
-    print_debug(buffer);
-    char *key_start = strstr(buffer, "\"some_secrets\": \"");
-    if (!key_start) {
-        print_debug("++++++++++++++++++ KEY NOT FOUND IN GLOBAL.SECRETS +++++++++++++++++++++");
-        free(buffer);
-        return;
-    }
-
-    key_start += strlen("\"some_secrets\": \"");
-
-    // Convert hex key to binary format
-    uint8_t key[KEY_SIZE];
+    // If the key is all 0xFF, it's uninitialized (common in flash memory)
+    int is_uninitialized = 1;
     for (int i = 0; i < KEY_SIZE; i++) {
-        sscanf(key_start + 2 * i, "%2hhx", &key[i]);
+        if (stored_key[i] != 0xFF) {
+            is_uninitialized = 0;
+            break;
+        }
     }
 
-    free(buffer);
+    // If this is the first boot and key is uninitialized, store key from `secrets.h`
+    if (is_uninitialized) {
+        print_debug("First boot detected - Storing secret key to flash.");
 
-    // Write key to flash memory
-    flash_simple_erase_page(FLASH_KEY_ADDR);
-    flash_simple_write(FLASH_KEY_ADDR, key, KEY_SIZE);
+        flash_simple_erase_page(FLASH_KEY_ADDR);
+        flash_simple_write(FLASH_KEY_ADDR, (void*)secret_key, KEY_SIZE);
 
-    print_debug("Key flashed to memory successfully.");
+        // Zero out secret_key in RAM to remove from memory
+        memset((void*)secret_key, 0, KEY_SIZE);
+    }
 }
+
+
+
 
 void read_key_from_flash(uint8_t *key_buffer) {
     flash_simple_read(FLASH_KEY_ADDR, key_buffer, KEY_SIZE);
@@ -377,6 +366,9 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     
     print_debug("***********Using Flash-Stored Key: *************");
     print_hex_debug(key, KEY_SIZE);
+
+    print_debug("READING KEY FROM HEADER FILE");
+    print_hex_debug(secret_key, 16);
     
 
     // read until key start then moves pointer length of keystart in bytes to start of the key 
@@ -398,9 +390,6 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     // print_debug(debug_buf);
 
     STATUS_LED_PURPLE();
-    print_debug("-------------- Key in hex ---------------: "); 
-    print_hex_debug(key, 16);
-    print_debug("------ Key successfully read ------");
     /********************************** KEY READ END *****************************************************/
 
 
@@ -481,7 +470,6 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
 */
 void init() {
     int ret;
-    flash_key_from_file();
 
     // Initialize the flash peripheral to enable access to persistent memory
     flash_simple_init();
@@ -490,7 +478,6 @@ void init() {
     // Read starting flash values into our flash status struct
     flash_simple_read(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
     
-    print_debug("++++++++++++++++++ flashing key before function call +++++++++++++++++++++");
 
 
     if (decoder_status.first_boot != FLASH_FIRST_BOOT) {
@@ -515,7 +502,13 @@ void init() {
 
         flash_simple_erase_page(FLASH_STATUS_ADDR);
         flash_simple_write(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
+
+        /***** Store flag on first boot *******/
+        flash_key_on_first_boot();
+
     }
+
+
 
     // Initialize the uart peripheral to enable serial I/O
     ret = uart_init();

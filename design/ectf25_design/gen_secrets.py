@@ -37,13 +37,57 @@ def gen_secrets(channels: list[int]) -> bytes:
     # The secrets file will never be shared with attackers
     secrets = {
         "channels": channels,
-        "some_secrets": "EXAMPLE",
+        "some_secrets": "a4359d15b2e12213ca1fb8a22efcac31",
     }
 
     # NOTE: if you choose to use JSON for your file type, you will not be able to
     # store binary data, and must either use a different file type or encode the
     # binary data to hex, base64, or another type of ASCII-only encoding
     return json.dumps(secrets).encode()
+
+
+def generate_secrets_header(secrets_file: Path, header_file: Path):
+    """Generate the `secrets.h` header file from the secrets JSON file.
+
+    :param secrets_file: Path to the generated secrets JSON file.
+    :param header_file: Path to the output header file.
+    """
+    try:
+        # Read secrets JSON file
+        with open(secrets_file, "r") as f:
+            secrets = json.load(f)
+
+        # Extract the key
+        secret_value = secrets.get("some_secrets", "")
+        if not secret_value:
+            logger.error("Error: 'some_secrets' key is missing in secrets file.")
+            return
+
+        # Convert hex string to an actual byte array
+        try:
+            key_bytes = bytes.fromhex(secret_value)
+        except ValueError:
+            logger.error("Error: 'some_secrets' is not a valid hex string.")
+            return
+
+        # Convert byte array to C-style array format
+        key_hex = ", ".join(f"0x{b:02X}" for b in key_bytes)
+
+        # Ensure the output directory exists
+        header_file.parent.mkdir(parents=True, exist_ok=True)
+
+        # Write to `secrets.h`
+        with open(header_file, "w") as f:
+            f.write("#ifndef SECRETS_H\n")
+            f.write("#define SECRETS_H\n\n")
+            f.write("#include <stdint.h>\n\n")
+            f.write(f"static const uint8_t secret_key[16] = {{ {key_hex} }};\n\n")
+            f.write("#endif // SECRETS_H\n")
+
+        logger.success(f"Generated {header_file}")
+
+    except Exception as e:
+        logger.error(f"Failed to generate secrets.h: {e}")
 
 
 def parse_args():
@@ -96,7 +140,9 @@ def main():
 
     # For your own debugging. Feel free to remove
     logger.success(f"Wrote secrets to {str(args.secrets_file.absolute())}")
-
+    # Generate the `secrets.h` file in `inc/`
+    secrets_header_path = Path("./decoder/inc/secrets.h")
+    generate_secrets_header(args.secrets_file, secrets_header_path)
 
 if __name__ == "__main__":
     main()
