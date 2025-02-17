@@ -127,6 +127,9 @@ typedef struct {
 // This is used to track decoder subscriptions
 flash_entry_t decoder_status;
 
+// Add a new global array to track the last processed timestamp per channel
+static timestamp_t last_timestamps[MAX_CHANNEL_COUNT] = {0};
+
 /**********************************************************
  ******************** REFERENCE FLAG **********************
  **********************************************************/
@@ -160,9 +163,21 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
         // i.e. channel 1 start 1 end 100 -> time starts in boot and counts up
         uint64_t start = decoder_status.subscribed_channels[i].start_timestamp;
         uint64_t end = decoder_status.subscribed_channels[i].end_timestamp;
-        // checks if entries in the 
-        if ((decoder_status.subscribed_channels[i].id == channel && decoder_status.subscribed_channels[i].active) && ((timestamp <= end)) && (timestamp >= start)) {
-        
+        // Ensure the channel is active and within the valid timestamp range
+        if (decoder_status.subscribed_channels[i].id == channel && 
+            decoder_status.subscribed_channels[i].active &&
+            timestamp >= start && timestamp <= end) {
+
+            // **Monotonic timestamp enforcement (only in RAM)**
+            if (timestamp <= last_timestamps[i]) {
+                STATUS_LED_RED();
+                print_debug("------ Timestamp not increasing. Rejecting frame. ------");
+                return 0; // Reject frame due to non-monotonic timestamp
+            }
+
+            // Update last processed timestamp (stored in RAM only)
+            last_timestamps[i] = timestamp;
+
             return 1;
         }
     }
@@ -322,12 +337,16 @@ void flash_key_on_first_boot() {
     // If this is the first boot and key is uninitialized, store key from `secrets.h`
     if (is_uninitialized) {
         print_debug("First boot detected - Storing secret key to flash.");
+        print_debug("SECRET KEY FROM HEADER BEFORE ");
+        print_hex_debug(secret_key, 16);
 
         flash_simple_erase_page(FLASH_KEY_ADDR);
         flash_simple_write(FLASH_KEY_ADDR, (void*)secret_key, KEY_SIZE);
 
         // Zero out secret_key in RAM to remove from memory
         memset((void*)secret_key, 0, KEY_SIZE);
+        print_debug("SECRET KEY FROM HEADER BEFORE ");
+        print_hex_debug(secret_key, 16);
     }
 }
 
@@ -371,23 +390,9 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     print_hex_debug(secret_key, 16);
     
 
-    // read until key start then moves pointer length of keystart in bytes to start of the key 
-    // Move the pointer to the start of the key value
-    //key_start += strlen("\"some_secrets\": \"");
-
     // Convert hex key to binary
     //uint8_t key[] = {0xa4, 0x35, 0x9d, 0x15, 0xb2, 0xe1, 0x22, 0x13, 0xca, 0x1f, 0xb8, 0xa2, 0x2e, 0xfc, 0xac, 0x31}; // 128-bit key (AES key size typically)
-    // char key_hex[33]; // Temporary buffer for the key hex string
-    // strncpy(key_hex, key_start, 32); // Copy hex string to local variable
-    // key_hex[32] = '\0'; // Null-terminate string
 
-    // Convert hex string to binary
-    //for (int i = 0; i < 16; i++) {
-    //    sscanf(key_hex + 2 * i, "%2hhx", &key[i]);
-    //}
-
-    // sprintf(debug_buf, "Encryption Key: %s", key_hex);
-    // print_debug(debug_buf);
 
     STATUS_LED_PURPLE();
     /********************************** KEY READ END *****************************************************/
@@ -503,7 +508,7 @@ void init() {
         flash_simple_erase_page(FLASH_STATUS_ADDR);
         flash_simple_write(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
 
-        /***** Store flag on first boot *******/
+/************ Store flag on first boot *******************************/
         flash_key_on_first_boot();
 
     }

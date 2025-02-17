@@ -13,6 +13,7 @@ Copyright: Copyright (c) 2025 The MITRE Corporation
 import argparse
 import json
 from pathlib import Path
+import secrets
 
 from loguru import logger
 
@@ -32,18 +33,24 @@ def gen_secrets(channels: list[int]) -> bytes:
     # TODO: Update this function to generate any system-wide secrets needed by
     #   your design
 
-    # Create the secrets object
-    # You can change this to generate any secret material
-    # The secrets file will never be shared with attackers
-    secrets = {
+    # Generate a **secure random 128-bit key**
+    random_key = secrets.token_bytes(16)  # 16 bytes = 128 bits
+
+    # Convert the key to a hex string (matches the format of the hardcoded example)
+    key_hex_string = random_key.hex()
+
+    # Store the channels and generated key in the secrets dictionary
+    secrets_dict = {
         "channels": channels,
-        "some_secrets": "a4359d15b2e12213ca1fb8a22efcac31",
+        "some_secrets": key_hex_string,  # Store the key as a hex string
     }
+
+    logger.debug(f"Generated random secret key: {key_hex_string}")
 
     # NOTE: if you choose to use JSON for your file type, you will not be able to
     # store binary data, and must either use a different file type or encode the
     # binary data to hex, base64, or another type of ASCII-only encoding
-    return json.dumps(secrets).encode()
+    return json.dumps(secrets_dict).encode()
 
 
 def generate_secrets_header(secrets_file: Path, header_file: Path):
