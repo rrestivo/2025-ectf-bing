@@ -424,7 +424,7 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
 
     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
     memcpy(decrypted_message, decrypted_packet->data, sizeof(decrypted_packet->data));
-    uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+    //uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
 
 
 
@@ -455,8 +455,9 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
             print_debug("Failed to decrypt message");
             return -1;
         }
-
-        write_packet(DECODE_MSG, decrypted_message, frame_size);
+        char trimmed_message[FRAME_SIZE] = {0};
+        memcpy(trimmed_message, decrypted_message, FRAME_SIZE);
+        write_packet(DECODE_MSG, trimmed_message, FRAME_SIZE);
         return 0;
     } else {
         STATUS_LED_RED();
