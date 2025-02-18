@@ -74,15 +74,12 @@ class SubscriptionGenerator:
 
         # Pack subscription fields into a binary format (little-endian order)
         packet = struct.pack("<IQQI", device_id, start, end, channel)
-        logger.debug(f"📦 Original Subscription Packet - Device ID: {device_id}, Start: {start}, End: {end}, Channel: {channel}")
-        logger.debug(f"📜 Binary Representation Before Encryption: {packet.hex()}")
 
-        # Ensure the packet is aligned to a multiple of 16 bytes for AES encryption
-        padded_packet = self._pad_data(packet)
-        logger.debug(f"Padded subscription packet: {padded_packet.hex()}")
+        padding_length = len(packet) % 16
+        packet += b'\x00' * padding_length
 
         # Encrypt the padded subscription packet
-        encrypted_packet = self._encrypt(padded_packet)
+        encrypted_packet = self._encrypt(packet)
         logger.debug(f"Encrypted subscription packet: {encrypted_packet.hex()}")
 
         return encrypted_packet

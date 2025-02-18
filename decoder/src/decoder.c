@@ -269,82 +269,39 @@ int list_channels() {
 int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     //TODO: Decrypt update packet. 
     // Padding: Make sure its divisible by 16
-
-    // DEBUG: Print received encrypted subscription packet
-    print_debug("------ Received Encrypted Subscription Packet ------");
-    print_hex_debug(update, pkt_len);
-
-    sprintf(debug_buf, "🔎 Received Packet Length: %d (Should be multiple of 16)", pkt_len);
-    print_debug(debug_buf);
-
     //uint8_t decrypted_update[pkt_len];
     uint8_t decrypted_update[sizeof(subscription_update_packet_t)];  
     uint8_t key[KEY_SIZE];
     char debug_buf[100];
     read_key_from_flash(key);
-    
+        
+
+    sprintf(debug_buf, "Received Packet Length: %d (Should be multiple of 16)", pkt_len);
+    print_debug(debug_buf);
+
+
     print_debug("***********Using Flash-Stored Key: *************");
     print_hex_debug(key, KEY_SIZE);
-
-    print_debug("READING KEY FROM HEADER FILE");
-    print_hex_debug(secret_key, 16);
-
-    if(decrypt_sym(update, pkt_len, key, decrypted_update)){
-        print_debug("decryption sucess -> update subscriptions function");
-    } else{
-        print_error("❌ Decryption failed! Invalid subscription update.");
+    int check  = decrypt_sym(update, pkt_len, key, decrypted_update);
+    if(check == 0){
+        print_debug("Decryption Success! -> update_subscriptions()");
+    }else if(check == -1){
+        print_error("Decrypt failed size mismatch!");
+    } 
+    else{
+        print_error("Decryption Failed! Invalid subscription update.");
         return -1;
     }
+    uint8_t trimmed_message[sizeof(subscription_update_packet_t)];
+    memcpy(trimmed_message, decrypted_update, sizeof(subscription_update_packet_t));
     subscription_update_packet_t *safe_update = (subscription_update_packet_t *)decrypted_update;
 
     // sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
     // print_debug(debug_buf);
         // DEBUG: Check struct field values
-    sprintf(debug_buf, "📦 Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", 
+    sprintf(debug_buf, "Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", 
             safe_update->decoder_id, safe_update->start_timestamp, safe_update->end_timestamp, safe_update->channel);
     print_debug(debug_buf);
-
-    int i;
-    /**
-     * After decrypting the subscription file, These are the things that we need to check 
-     * before we update the subscription from the channel
-     * 
-     *  Ensure the subscription timestamps are valid.
-     * Ensure the channel ID is within the allowed list.
-     * Check if the subscription already exists.
-     * Update or replace an old subscription if necessary.
-     * 
-     */
-
-    
-    // Ensure timestamps are valid
-    uint64_t current_time = get_current_time();
-    if (safe_update->start_timestamp >= safe_update->end_timestamp) {
-        STATUS_LED_RED();
-        print_error("❌ Invalid Subscription: Start time is after End time.");
-        return -1;
-    }
-
-    if (safe_update->start_timestamp < current_time) {
-        STATUS_LED_RED();
-        print_error("❌ Invalid Subscription: Start time is in the past.");
-        return -1;
-    }
-
-    // Ensure the channel ID is within the allowed list.
-
-    if (safe_update->channel > MAX_CHANNEL_COUNT) {
-        STATUS_LED_RED();
-        print_error("❌ Invalid Subscription: Channel ID out of range.");
-        return -1;
-    }
-
-    if (safe_update->channel == EMERGENCY_CHANNEL) {
-        STATUS_LED_RED();
-        print_error("Failed to update subscription - cannot subscribe to emergency channel\n");
-        return -1;
-    }
-
 
 
 
@@ -352,69 +309,39 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     
 
         //Check if the received structure size matches expected size
-    sprintf(debug_buf, "🔎 Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
+    sprintf(debug_buf, "Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
     print_debug(debug_buf);
 
-    // // Find the first empty slot in the subscription array
-    // for (i = 0; i < MAX_CHANNEL_COUNT; i++) {
-    //     if (decoder_status.subscribed_channels[i].id == safe_update->channel || !decoder_status.subscribed_channels[i].active) {
-    //         decoder_status.subscribed_channels[i].active = true;
-    //         decoder_status.subscribed_channels[i].id = safe_update->channel;
-    //         decoder_status.subscribed_channels[i].start_timestamp = safe_update->start_timestamp;
-    //         decoder_status.subscribed_channels[i].end_timestamp = safe_update->end_timestamp;
-    //         break;
-    //     }
-    // }
+    int i;
 
-    // // If we do not have any room for more subscriptions
-    // if (i == MAX_CHANNEL_COUNT) {
-    //     STATUS_LED_RED();
-    //     print_error("Failed to update subscription - max subscriptions installed\n");
-    //     return -1;
-    // }
+    if (safe_update->channel == EMERGENCY_CHANNEL) {
+        STATUS_LED_RED();
+        print_error("Failed to update subscription - cannot subscribe to emergency channel\n");
+        return -1;
+    }
 
-
-    // Check if the subscription already exists.
-    int subscription_exists = 0;
-    for (int i = 0; i < MAX_CHANNEL_COUNT; i++) {
-        if (decoder_status.subscribed_channels[i].id == safe_update->channel) {
-            subscription_exists = 1;
-            print_debug("🔄 Subscription already exists, updating entry.");
+    // Find the first empty slot in the subscription array
+    for (i = 0; i < MAX_CHANNEL_COUNT; i++) {
+        if (decoder_status.subscribed_channels[i].id == safe_update->channel || !decoder_status.subscribed_channels[i].active) {
+            decoder_status.subscribed_channels[i].active = true;
+            decoder_status.subscribed_channels[i].id = safe_update->channel;
             decoder_status.subscribed_channels[i].start_timestamp = safe_update->start_timestamp;
             decoder_status.subscribed_channels[i].end_timestamp = safe_update->end_timestamp;
             break;
         }
     }
 
-    // Find an empty slot if subscription does not exist 
-    if (!subscription_exists) {
-        int i;
-        for (i = 0; i < MAX_CHANNEL_COUNT; i++) {
-            if (!decoder_status.subscribed_channels[i].active) {
-                decoder_status.subscribed_channels[i].active = true;
-                decoder_status.subscribed_channels[i].id = safe_update->channel;
-                decoder_status.subscribed_channels[i].start_timestamp = safe_update->start_timestamp;
-                decoder_status.subscribed_channels[i].end_timestamp = safe_update->end_timestamp;
-                print_debug("✅ New subscription added successfully.");
-                break;
-            }
-        }
-
-        // If no empty slot is available, return an error
-        if (i == MAX_CHANNEL_COUNT) {
-            STATUS_LED_RED();
-            print_error("❌ Failed to update subscription - No space available.");
-            return -1;
-        }
+    // If we do not have any room for more subscriptions
+    if (i == MAX_CHANNEL_COUNT) {
+        STATUS_LED_RED();
+        print_error("Failed to update subscription - max subscriptions installed\n");
+        return -1;
     }
 
     flash_simple_erase_page(FLASH_STATUS_ADDR);
     flash_simple_write(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
-    print_debug("✅ Subscription successfully saved to flash.");
-
     // Success message with an empty body
     write_packet(SUBSCRIBE_MSG, NULL, 0);
-    STATUS_LED_GREEN();
     return 0;
 }
 
