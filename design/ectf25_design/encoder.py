@@ -73,11 +73,15 @@ class Encoder:
 
         if len(frame) > 64:
             raise ValueError("Frame size must not exceed 64 bytes.")
+        frame_size = len(frame)
         print(f"frame length before encryption ---> {len(frame)}")
         # if channel > 4:
         #     raise ValueError("Channel size must be 4 bytes max")
         # if timestamp > 8:
         #     raise ValueError("timestamp size must be 4 bytes max")
+        if frame_size % 16 != 0:
+            frame_padding = 16 - (frame_size % 16)
+            frame += b'\x00' * frame_padding
         
 
         # First round of encryption on just the frame, without padding since it's already 64 bytes
@@ -85,17 +89,16 @@ class Encoder:
         print(f"First encryption complete. Length of encrypted frame: {len(encrypted_frame)} bytes")
 
         # Pack channel and timestamp into header
-        header = struct.pack("<IQ", channel, timestamp)
+        header = struct.pack("<IQI", channel, timestamp, frame_size)
         print(f"Packed Header: {header.hex()} (Channel = {channel}, Timestamp = {timestamp})")
         
         # Prepare the full packet with the encrypted frame
         full_packet = header + encrypted_frame
         print(f"FULL PACKET LENGTH WITHOUT PADDING -> {len(full_packet)}")
         # Padding added to make the total packet size exactly 80 bytes
-        total_length_with_padding = 80
-        current_length = len(full_packet)
-        padding_length = total_length_with_padding - current_length
-        full_packet += b'\x00' * padding_length
+        if len(full_packet) %16 != 0:
+            padding_length = 16 - (len(full_packet) %16) 
+            full_packet += b'\x00' * padding_length
 
         print(f"Full packet length before final encryption (including padding): {len(full_packet)} bytes")
         # Second round of encryption on the entire packet, no additional padding needed as it's set to 80 bytes

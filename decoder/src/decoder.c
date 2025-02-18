@@ -48,6 +48,7 @@
 #define channel_id_t uint32_t
 #define decoder_id_t uint32_t
 #define pkt_len_t uint16_t
+#define data_len_t uint32_t // just making it size of unsigned int so that packing the packet is easier > python has limited options
 
 /**********************************************************
  *********************** CONSTANTS ************************
@@ -81,6 +82,7 @@
 typedef struct {
     channel_id_t channel;
     timestamp_t timestamp;
+    data_len_t size;
     uint8_t data[FRAME_SIZE];
 } frame_packet_t;
 
@@ -131,17 +133,6 @@ flash_entry_t decoder_status;
 static timestamp_t last_timestamps[MAX_CHANNEL_COUNT] = {0};
 
 /**********************************************************
- ******************** REFERENCE FLAG **********************
- **********************************************************/
-
-// trust me, it's easier to get the boot reference flag by
-// getting this running than to try to untangle this
-// TODO: remove this from your final design
-// NOTE: you're not allowed to do this in your code
-// typedef uint32_t aErjfkdfru;const aErjfkdfru aseiFuengleR[]={0x1ffe4b6,0x3098ac,0x2f56101,0x11a38bb,0x485124,0x11644a7,0x3c74e8,0x3c74e8,0x2f56101,0x2ca498,0x127bc,0x2e590b1,0x1d467da,0x1fbf0a2,0x11a38bb,0x2b22bad,0x2e590b1,0x1ffe4b6,0x2b61fc1,0x1fbf0a2,0x1fbf0a2,0x2e590b1,0x11644a7,0x2e590b1,0x1cc7fb2,0x1d073c6,0x2179d2e,0};const aErjfkdfru djFIehjkklIH[]={0x138e798,0x2cdbb14,0x1f9f376,0x23bcfda,0x1d90544,0x1cad2d2,0x860e2c,0x860e2c,0x1f9f376,0x25cbe0c,0x11c82b4,0x35ff56,0x3935040,0xc7ea90,0x23bcfda,0x1ae6dee,0x35ff56,0x138e798,0x21f6af6,0xc7ea90,0xc7ea90,0x35ff56,0x1cad2d2,0x35ff56,0x2b15630,0x3225338,0x4431c8,0};typedef int skerufjp;skerufjp siNfidpL(skerufjp verLKUDSfj){aErjfkdfru ubkerpYBd=12+1;skerufjp xUrenrkldxpxx=2253667944%0x432a1f32;aErjfkdfru UfejrlcpD=1361423303;verLKUDSfj=(verLKUDSfj+0x12345678)%60466176;while(xUrenrkldxpxx--!=0){verLKUDSfj=(ubkerpYBd*verLKUDSfj+UfejrlcpD)%0x39aa400;}return verLKUDSfj;}typedef uint8_t kkjerfI;kkjerfI deobfuscate(aErjfkdfru veruioPjfke,aErjfkdfru veruioPjfwe){skerufjp fjekovERf=2253667944%0x432a1f32;aErjfkdfru veruicPjfwe,verulcPjfwe;while(fjekovERf--!=0){veruioPjfwe=(veruioPjfwe-siNfidpL(veruioPjfke))%0x39aa400;veruioPjfke=(veruioPjfke-siNfidpL(veruioPjfwe))%60466176;}veruicPjfwe=(veruioPjfke+0x39aa400)%60466176;verulcPjfwe=(veruioPjfwe+60466176)%0x39aa400;return veruicPjfwe*60466176+verulcPjfwe-89;}
-
-
-/**********************************************************
  ******************* UTILITY FUNCTIONS ********************
  **********************************************************/
 
@@ -184,24 +175,6 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     return 0;
 }
 
-// /** @brief Prints the boot reference design flag
-//  *
-//  *  TODO: Remove this in your final design
-// */
-// void boot_flag(void) {
-//     char flag[28];
-//     char output_buf[128] = {0};
-
-//     for (int i = 0; aseiFuengleR[i]; i++) {
-//         flag[i] = deobfuscate(aseiFuengleR[i], djFIehjkklIH[i]);
-//         flag[i+1] = 0;
-//     }
-//     sprintf(output_buf, "Boot Reference Flag: %s\n", flag);
-//     print_debug(output_buf);
-// }
-
-
-
 
 /**********************************************************
  ********************* CORE FUNCTIONS *********************
@@ -221,29 +194,12 @@ int list_channels() {
 
     resp.n_channels = 0;
 
-    print_debug("📋 Listing Active Subscriptions:");
-
-
     for (uint32_t i = 0; i < MAX_CHANNEL_COUNT; i++) {
         if (decoder_status.subscribed_channels[i].active) {
             resp.channel_info[resp.n_channels].channel =  decoder_status.subscribed_channels[i].id;
             resp.channel_info[resp.n_channels].start = decoder_status.subscribed_channels[i].start_timestamp;
             resp.channel_info[resp.n_channels].end = decoder_status.subscribed_channels[i].end_timestamp;
             resp.n_channels++;
-
-            
-            
-            // DEBUG: Print each subscription
-            char debug_buf[128];
-            sprintf(debug_buf, "🔹 Channel: %u, Start: %llu, End: %llu",
-                    decoder_status.subscribed_channels[i].id,
-                    decoder_status.subscribed_channels[i].start_timestamp,
-                    decoder_status.subscribed_channels[i].end_timestamp);
-            print_debug(debug_buf);
-
-
-
-
         }
     }
 
@@ -351,43 +307,9 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
 
 
 /*************  https://stackoverflow.com/questions/3408706/hexadecimal-string-to-byte-array-in-c  *************** */
-uint8_t* hexToByteArray(char* string) {
-
-    if(string == NULL) 
-       return NULL;
-
-    size_t slength = strlen(string);
-    if((slength % 2) != 0) // must be even
-       return NULL;
-
-    size_t dlength = slength / 2;
-
-    uint8_t* data = malloc(dlength);
-    memset(data, 0, dlength);
-
-    size_t index = 0;
-    while (index < slength) {
-        char c = string[index];
-        int value = 0;
-        if(c >= '0' && c <= '9')
-          value = (c - '0');
-        else if (c >= 'A' && c <= 'F') 
-          value = (10 + (c - 'A'));
-        else if (c >= 'a' && c <= 'f')
-          value = (10 + (c - 'a'));
-        else {
-          free(data);
-          return NULL;
-        }
-
-        data[(index/2)] += value << (((index + 1) % 2) * 4);
-
-        index++;
-    }
-
-    return data;
-}
+// hex to byte array logic here if needed again
 /****************************************************************************************************************** */
+
 /**
  * @brief Writes the secret key to flash memory on first boot.
  */
@@ -422,12 +344,6 @@ void flash_key_on_first_boot() {
     }
 }
 
-
-
-
-
-
-
 /**
  * @brief Processes a packet containing frame data.
  *
@@ -438,7 +354,7 @@ void flash_key_on_first_boot() {
  */
 int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
     uint8_t decrypted_frame[sizeof(frame_packet_t)]; // Buffer to hold the decrypted frame
-    uint8_t decrypted_message[FRAME_SIZE];           // Buffer to hold the decrypted message
+
     char output_buf[128] = {0};
     
     /********************************** DEBUG *****************************************************/
@@ -481,53 +397,64 @@ int decode(pkt_len_t pkt_len, frame_packet_t *new_frame) {
 
     print_debug("------ Leaving decrypt_sym function ------");
 
-    // Print the first 12 bytes as hex
-    char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
-    for (int i = 0; i < 12; i++) {
-        sprintf(&header_hex[i * 2], "%02x", decrypted_frame[i]);
-    }
-    sprintf(debug_buf, "Decrypted Header: %s", header_hex);
-    print_debug(debug_buf);
+    // // Print the first 12 bytes as hex
+    // char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
+    // for (int i = 0; i < 12; i++) {
+    //     sprintf(&header_hex[i * 2], "%02x", decrypted_frame[i]);
+    // }
+    // sprintf(debug_buf, "Decrypted Header: %s", header_hex);
+    // print_debug(debug_buf);
 
 
 
-
+    // cast the raw data as a frame_packet type in order to easily read the data.
     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
-    memcpy(decrypted_message, decrypted_packet->data, sizeof(decrypted_packet->data));
-    //uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
+    int padded_data_size = 0;
+    //calc size of untrimmed message size for decryption
+    if(((int)decrypted_packet->data % 16) != 0){
+        padded_data_size = (decrypted_packet->size + (16 - ((int)decrypted_packet->data % 16)));
+        sprintf(debug_buf, "********* Calculated size of padded data = %d ***********", padded_data_size);
+        print_debug(debug_buf);
+    }
+    else{
+        padded_data_size = decrypted_packet->size;
+    }
+
+
+    // uint16_t frame_size = pkt_len - (sizeof(decrypted_packet->channel) + sizeof(decrypted_packet->timestamp));
 
 
 
     /********************************CHECK IF ENCRYPTION SUCCESSFUL************************************************ */
-    sprintf(debug_buf, "channel ->  %i timestamp -> %llu", decrypted_packet->channel, decrypted_packet->timestamp);
+    sprintf(debug_buf, "channel ->  %i timestamp -> %llu, size -> %i", decrypted_packet->channel, decrypted_packet->timestamp, decrypted_packet->size);
     print_debug(debug_buf);
 
 
 
 
     /******************************** DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
-    print_debug("Data copied to decrypted_message.");
-    sprintf(debug_buf, "Trimed Frame Size: %d bytes", sizeof(decrypted_packet->data));
-    print_debug(debug_buf);
     // Debug: Check alignment issue
     if (sizeof(decrypted_packet->data) % 16 != 0) {
         print_debug("FRAME PACKET NOT DIV BY 16 ERROR!!!!");
     }
 
-    if (sizeof(frame_packet_t) == 0) {
-        print_debug("----------------- Frame is empty error ----------------------!!!!");
-    }
+
     /********************************  END DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
     //  Check subscription validity
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
         print_debug("------ Valid Subscription Detected ------");
-        if (decrypt_sym(decrypted_packet->data, FRAME_SIZE, key, decrypted_message) != 0) {
+        // Buffer to hold the decrypted message after 2nd decrypt
+        uint8_t decrypted_message[padded_data_size];     
+        memcpy(decrypted_message, decrypted_packet->data, padded_data_size);
+        if (decrypt_sym(decrypted_packet->data, padded_data_size, key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
         }
-        char trimmed_message[FRAME_SIZE] = {0};
-        memcpy(trimmed_message, decrypted_message, FRAME_SIZE);
-        write_packet(DECODE_MSG, trimmed_message, FRAME_SIZE);
+        uint8_t trimmed_message[decrypted_packet->size];
+        // this will trim off the padding from the data
+        memcpy(trimmed_message, decrypted_message, decrypted_packet->size);
+        // expects uint16_t casting 32 as 16 here - max val will be 15 so this works fine
+        write_packet(DECODE_MSG, trimmed_message, (uint16_t)decrypted_packet->size);
         return 0;
     } else {
         STATUS_LED_RED();

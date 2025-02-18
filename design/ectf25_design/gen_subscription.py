@@ -75,7 +75,7 @@ class SubscriptionGenerator:
         # Pack subscription fields into a binary format (little-endian order)
         packet = struct.pack("<IQQI", device_id, start, end, channel)
 
-        padding_length = len(packet) % 16
+        padding_length = 16 - (len(packet) % 16)
         packet += b'\x00' * padding_length
 
         # Encrypt the padded subscription packet
