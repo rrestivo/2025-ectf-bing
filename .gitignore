@@ -338,3 +338,4 @@ msdk/
 *.secrets
 *.subscription
 decoder/inc/secrets.h
+deadbeef_c1.sub
