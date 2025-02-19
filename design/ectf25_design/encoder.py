@@ -16,6 +16,7 @@ import json
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
+from loguru import logger
 
 class Encoder:
     def __init__(self, secrets: bytes):
@@ -31,18 +32,23 @@ class Encoder:
         # Load the json of the secrets file
         secrets = json.loads(secrets)
         
-        # In this design, the secret "some_secrets" is expected to be a hex string
-        # representing a 128-bit AES key.
-        self.key = bytes.fromhex(secrets["some_secrets"])
+        # channel-specific 128-bit AES keys
+        self.channel_keys = {int(c): bytes.fromhex(k) for c, k in secrets["channel_keys"].items()}
+        
+        # main 128-bit AES key
+        self.secret_key = bytes.fromhex(secrets["secret_key"])
 
-        # Load the example secrets for use in Encoder.encode
-        # This will be "EXAMPLE" in the reference design"
-        self.some_secrets = secrets["some_secrets"]
+
+        logger.info("Successfully loaded channel keys and secret_key.")
+        logger.debug(f"Available channel keys: {list(self.channel_keys.keys())}")
+        logger.debug(f"Final encryption key (secret_key): {self.secret_key.hex()}")
+        
     
-    def _encrypt(self, data: bytes) -> bytes:
-        print(f"encoder key-> {self.key.hex()}")
+    def _encrypt(self, data: bytes, key: bytes) -> bytes:
+        """Encrypt data using AES-ECB mode"""
+        logger.debug(f"Encrypting data with key: {key.hex()}")
         # TODO: handle exceptiopns from crypto library
-        cipher = Cipher(algorithms.AES(self.key), modes.ECB(), backend=default_backend())
+        cipher = Cipher(algorithms.AES(key), modes.ECB(), backend=default_backend())
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(data) + encryptor.finalize()
         return encrypted_data
@@ -67,45 +73,67 @@ class Encoder:
         """
         # TODO: encode the satellite frames so that they meet functional and
         #  security requirements
-        
-        print(f"Encoding frame: Channel = {channel}, Timestamp = {timestamp}")
 
         if len(frame) > 64:
             raise ValueError("Frame size must not exceed 64 bytes.")
         frame_size = len(frame)
-        print(f"frame length before encryption ---> {len(frame)}")
-        
+                
         if channel < 0:
             raise ValueError("ERROR: channel id can't be negative")
         # TODO: add sanity check for max value of both channel and timestamp
         if timestamp < 0:
              raise ValueError("ERROR: timestamp must be greater than or equal to 0")
         
+        logger.info(f"Encoding frame for Channel = {channel}, Timestamp = {timestamp}")
+
+        # Pad frame to be a multiple of 16 bytes
         if frame_size % 16 != 0:
             frame_padding = 16 - (frame_size % 16)
             frame += b'\x00' * frame_padding
+        logger.info(f"Frame padded to: {len(frame)} bytes (Multiple of 16)")
+
+        # Select encryption key
+        if channel == 0:
+            channel_key = self.secret_key  # Emergency channel uses secret_key
+        else:
+            if channel not in self.channel_keys:
+                raise ValueError(f"No key found for channel {channel}. Available channels: {list(self.channel_keys.keys())}")
+            channel_key = self.channel_keys[channel]
         
+        logger.info(f"Using encryption key for channel {channel}: {channel_key.hex()}")
 
-        # First round of encryption on just the frame, without padding since it's already 64 bytes
-        encrypted_frame = self._encrypt(frame)
-        print(f"First encryption complete. Length of encrypted frame: {len(encrypted_frame)} bytes")
 
-        # Pack channel and timestamp into header
+
+
+        # First encryption layer on padded frame
+        encrypted_frame = self._encrypt(frame, self.secret_key)
+        logger.success(f"First encryption complete. Encrypted Frame Size: {len(encrypted_frame)} bytes")
+
+
+
+        # Pack header (channel_id + timestamp + frame_size)
         header = struct.pack("<IQI", channel, timestamp, frame_size)
-        print(f"Packed Header: {header.hex()} (Channel = {channel}, Timestamp = {timestamp})")
+        logger.debug(f"Packed Header: {header.hex()} (Channel = {channel}, Timestamp = {timestamp})")
         
-        # Prepare the full packet with the encrypted frame
+        
+        
+        # Create full packet with encrypted frame
         full_packet = header + encrypted_frame
-        print(f"FULL PACKET LENGTH WITHOUT PADDING -> {len(full_packet)}")
-        # Padding added to make the total packet size divisible by 16
-        if len(full_packet) %16 != 0:
-            padding_length = 16 - (len(full_packet) %16) 
-            full_packet += b'\x00' * padding_length
+        logger.debug(f"Full Packet Length Before Final Padding: {len(full_packet)} bytes")
 
-        print(f"Full packet length before final encryption (including padding): {len(full_packet)} bytes")
-        # Second round of encryption on the entire packet, no additional padding needed as it's set to 80 bytes
-        encrypted_packet = self._encrypt(full_packet)
-        print(f"Final encryption complete. Length of encrypted packet: {len(encrypted_packet)} bytes")
+
+
+        # Ensure full packet is a multiple of 16 bytes
+        if len(full_packet) % 16 != 0:
+            padding_length = 16 - (len(full_packet) % 16)
+            full_packet += b'\x00' * padding_length
+        
+        logger.info(f"Final Packet Size After Padding: {len(full_packet)} bytes (Multiple of 16)")
+        
+        
+        # Second encryption layer
+        encrypted_packet = self._encrypt(full_packet, self.secret_key)
+        logger.success(f"Final encryption complete. Encrypted Packet Size: {len(encrypted_packet)} bytes")
         
         return encrypted_packet
         #return struct.pack("<IQ", channel, timestamp) + frame
