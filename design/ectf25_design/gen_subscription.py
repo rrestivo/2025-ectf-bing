@@ -50,16 +50,16 @@ class SubscriptionGenerator:
         encrypted_data = encryptor.update(data) + encryptor.finalize()
         return encrypted_data
 
-    def _pad_data(self, data: bytes) -> bytes:
-        """
-        Ensures the input data length is a multiple of 16 by applying PKCS7 padding.
+    # def _pad_data(self, data: bytes) -> bytes:
+    #     """
+    #     Ensures the input data length is a multiple of 16 by applying PKCS7 padding.
 
-        :param data: The original byte data before encryption.
-        :return: Padded byte data.
-        """
-        padder = padding.PKCS7(128).padder()  # 128-bit (16 bytes) block size
-        padded_data = padder.update(data) + padder.finalize()
-        return padded_data
+    #     :param data: The original byte data before encryption.
+    #     :return: Padded byte data.
+    #     """
+    #     padder = padding.PKCS7(128).padder()  # 128-bit (16 bytes) block size
+    #     padded_data = padder.update(data) + padder.finalize()
+    #     return padded_data
 
     def gen_subscription(self, device_id: int, start: int, end: int, channel: int) -> bytes:
         """

@@ -22,7 +22,7 @@
 #define CMD_TYPE_LEN sizeof(char)
 #define CMD_LEN_LEN sizeof(uint16_t)
 #define MSG_MAGIC '%'     // '%' - 0x25
-#define MAX_PACKET_SIZE 80
+#define MAX_PACKET_SIZE 100
 
 
 typedef enum {
@@ -79,6 +79,7 @@ int read_packet(msg_type_t* cmd, void *buf, uint16_t *len);
 #define print_error(msg) write_packet(ERROR_MSG, msg, strlen(msg))
 
 // Macro definitions to print the specified format for debug messages
+
 #define print_debug(msg) write_packet(DEBUG_MSG, msg, strlen(msg))
 #define print_hex_debug(msg, len) write_hex(DEBUG_MSG, msg, len)
 

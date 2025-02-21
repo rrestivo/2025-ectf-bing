@@ -69,24 +69,42 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
 int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext) {
+    // Aes ctx; // Context for decryption
+    // int result; // Library result
+
+    // // Ensure valid length
+    // if (len <= 0 || len % BLOCK_SIZE)
+    //     return -1;
+
+    // // Set the key for decryption
+    // result = wc_AesSetKey(&ctx, key, 16, NULL, AES_DECRYPTION);
+    // if (result != 0)
+    //     return result; // Report error
+
+    // // Decrypt each block
+    // for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
+    //     result = wc_AesDecryptDirect(&ctx, plaintext + i, ciphertext + i);
+    //     if (result != 0)
+    //         return result; // Report error
+    // }
+    // return 0;
     Aes ctx; // Context for decryption
     int result; // Library result
 
     // Ensure valid length
-    if (len <= 0 || len % BLOCK_SIZE)
-        return -1;
+    if (len <= 0 || (len % BLOCK_SIZE) != 0 || len < IV_SIZE)
+        return -1; // Return error if length is less than the size of the IV
 
-    // Set the key for decryption
-    result = wc_AesSetKey(&ctx, key, 16, NULL, AES_DECRYPTION);
+    // Set the key for decryption, using the first 16 bytes of the ciphertext as the IV
+    result = wc_AesSetKey(&ctx, key, 16, ciphertext, AES_DECRYPTION);
     if (result != 0)
-        return result; // Report error
+        return result; // Report error if key setting fails
 
-    // Decrypt each block
-    for (int i = 0; i < len - 1; i += BLOCK_SIZE) {
-        result = wc_AesDecryptDirect(&ctx, plaintext + i, ciphertext + i);
-        if (result != 0)
-            return result; // Report error
-    }
+    // Decrypt each block, skipping the first 16 bytes which are the IV
+    result = wc_AesCbcDecrypt(&ctx, plaintext, ciphertext + IV_SIZE, len - IV_SIZE);
+    if (result != 0)
+        return result; // Report error if decryption fails
+
     return 0;
 }
 

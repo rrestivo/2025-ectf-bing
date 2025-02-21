@@ -22,6 +22,8 @@
 #define BLOCK_SIZE AES_BLOCK_SIZE
 #define KEY_SIZE 16
 #define HASH_SIZE MD5_DIGEST_SIZE
+#define IV_SIZE 16  // Size of the IV
+
 
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
