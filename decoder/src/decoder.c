@@ -158,7 +158,7 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
             // **Monotonic timestamp enforcement (only in RAM)**
             if (timestamp <= last_timestamps[i]) {
                 STATUS_LED_RED();
-                print_debug("------ Timestamp not increasing. Rejecting frame. ------");
+                //print_debuug("------ Timestamp not increasing. Rejecting frame. ------");
                 return 0; // Reject frame due to non-monotonic timestamp
             }
 
@@ -222,12 +222,12 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     char debug_buf[100];
 
     sprintf(debug_buf, "Received Packet Length: %d (Should be multiple of 16)", pkt_len);
-    print_debug(debug_buf);
+    //print_debuug(debug_buf);
 
 
     int check  = decrypt_sym(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
     if(check == 0){
-        print_debug("Decryption Success! -> update_subscriptions()");
+        //print_debuug("Decryption Success! -> update_subscriptions()");
     }else if(check == -1){
         print_error("Decrypt failed size mismatch!");
     } 
@@ -240,11 +240,11 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     subscription_update_packet_t *safe_update = (subscription_update_packet_t *)decrypted_update;
 
     // sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
-    // print_debug(debug_buf);
+    // //print_debuug(debug_buf);
         // DEBUG: Check struct field values
     sprintf(debug_buf, "Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", 
             safe_update->decoder_id, safe_update->start_timestamp, safe_update->end_timestamp, safe_update->channel);
-    print_debug(debug_buf);
+    //print_debuug(debug_buf);
 
 
 
@@ -253,7 +253,7 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
 
         //Check if the received structure size matches expected size
     sprintf(debug_buf, "Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
-    print_debug(debug_buf);
+    //print_debuug(debug_buf);
 
     int i;
 
@@ -311,13 +311,13 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
     // Debug: Received packet length
     sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
-    print_debug(debug_buf);
+    //print_debuug(debug_buf);
     /********************************** DEBUG END*****************************************************/
     /********************************** KEY TEST DEBUG *****************************************************/
 
 
-    print_debug("DEBUG: READ ENCRYPTION KEY FROM HEADER FILE");
-    print_hex_debug(secret_key, 16);
+    //print_debuug("DEBUG: READ ENCRYPTION KEY FROM HEADER FILE");
+   // print_hex_debug(secret_key, 16);
     
 
     /********************************** KEY TEST END *****************************************************/
@@ -325,16 +325,16 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
     ///////////////////////////// FIRST DECRYPT //////////////////////////////////////////////////////////////////////////////
 
-    print_debug("------ Entering decrypt_sym function ------");
+    //print_debuug("------ Entering decrypt_sym function ------");
     int dec_ret = decrypt_sym(new_frame, pkt_len, (uint8_t*)secret_key, decrypted_frame);
-    if(dec_ret == -1)print_debug("__________PACKET LENGTH ERROR________________");
+    if(dec_ret == -1) print_debug("__________PACKET LENGTH ERROR________________");
 
     if (dec_ret != 0) {
-        print_debug("--------------- Failed to decrypt frame ---------------------------");
+        //print_debug("--------------- Failed to decrypt frame ---------------------------");
         return -1; 
     }
 
-    print_debug("------ Leaving decrypt_sym function ------");
+    //print_debug("------ Leaving decrypt_sym function ------");
 
     // // Print the first 12 bytes as hex
     // char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
@@ -353,35 +353,35 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     if(((int)decrypted_packet->size % 16) != 0){
         padded_data_size = (decrypted_packet->size + (16 - ((int)decrypted_packet->size % 16)));
         sprintf(debug_buf, "********* Calculated size of padded data = %d ***********", padded_data_size);
-        print_debug(debug_buf);
+        //print_debug(debug_buf);
     }
     else{
         padded_data_size = decrypted_packet->size;
     }
 
     /********************************CHECK IF ENCRYPTION SUCCESSFUL************************************************ */
-    sprintf(debug_buf, "channel ->  %i timestamp -> %llu, size -> %i", decrypted_packet->channel, decrypted_packet->timestamp, decrypted_packet->size);
-    print_debug(debug_buf);
+    //sprintf(debug_buf, "channel ->  %i timestamp -> %llu, size -> %i", decrypted_packet->channel, decrypted_packet->timestamp, decrypted_packet->size);
+    //print_debug(debug_buf);
 
 
 
 
     /******************************** DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
     // Debug: Check alignment issue
-    if (sizeof(decrypted_packet->data) % 16 != 0) {
-        print_debug("FRAME PACKET NOT DIV BY 16 ERROR!!!!");
-    }
+    // if (sizeof(decrypted_packet->data) % 16 != 0) {
+    //     print_debug("FRAME PACKET NOT DIV BY 16 ERROR!!!!");
+    // }
 
 
     /********************************  END DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
     //  Check subscription validity
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
-        print_debug("------ Valid Subscription Detected ------");
+        //print_debug("------ Valid Subscription Detected ------");
         // Buffer to hold the decrypted message after 2nd decrypt
         uint8_t decrypted_message[padded_data_size];     
         memcpy(decrypted_message, decrypted_packet->data, padded_data_size);
         if (decrypt_sym(decrypted_packet->data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
-            print_debug("Failed to decrypt message");
+            //print_debuug("Failed to decrypt message");
             return -1;
         }
         uint8_t trimmed_message[decrypted_packet->size];
@@ -393,7 +393,7 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     } else {
         STATUS_LED_RED();
         sprintf(output_buf, "Receiving unsubscribed channel data. Channel: %u", decrypted_packet->channel);
-        print_debug(output_buf);
+        //print_debuug(output_buf);
         return -1;
     }
 }
@@ -422,7 +422,7 @@ void init() {
         *  This data will be persistent across reboots of the decoder. Whenever the decoder
         *  processes a subscription update, this data will be updated.
         */
-        print_debug("First boot.  Setting flash...\n");
+        //print_debuug("First boot.  Setting flash...\n");
 
         decoder_status.first_boot = FLASH_FIRST_BOOT;
 
@@ -468,19 +468,19 @@ void init() {
      init();
  
      // Debug: Boot message
-     print_debug("Decoder Booted!");
+     //print_debuug("Decoder Booted!");
  
      // Print size of frame_packet_t
      sprintf(output_buf, "Size of frame_packet_t: %d bytes", (int)sizeof(frame_packet_t));
-     print_debug(output_buf);
+     //print_debuug(output_buf);
  
      // Print size of pkt_len
      sprintf(output_buf, "Size of pkt_len: %d bytes", (int)sizeof(pkt_len));
-     print_debug(output_buf);
+     //print_debuug(output_buf);
  
      // Process commands forever
      while (1) {
-         print_debug("Ready");
+         //print_debuug("Ready");
  
          //STATUS_LED_GREEN();
          STATUS_LED_WHITE();
@@ -489,11 +489,11 @@ void init() {
         
          // Debug: Print command received
          sprintf(output_buf, "Received Command: %d", cmd);
-         print_debug(output_buf);
+         //print_debuug(output_buf);
  
          // Debug: Print packet length
          sprintf(output_buf, "Packet Length: %d bytes", pkt_len);
-         print_debug(output_buf);
+         //print_debuug(output_buf);
  
          if (result < 0) {
              STATUS_LED_ERROR();
@@ -505,19 +505,19 @@ void init() {
          switch (cmd) {
          case LIST_MSG:
              STATUS_LED_CYAN();
-             print_debug("Executing: LIST_MSG");
+             //print_debuug("Executing: LIST_MSG");
              list_channels();
              break;
  
          case DECODE_MSG:
              STATUS_LED_PURPLE();
-             print_debug("Executing: DECODE_MSG");
+             //print_debuug("Executing: DECODE_MSG");
              decode(pkt_len, uart_buf);
              break;
  
          case SUBSCRIBE_MSG:
              STATUS_LED_YELLOW();
-             print_debug("Executing: SUBSCRIBE_MSG");
+             //print_debuug("Executing: SUBSCRIBE_MSG");
              update_subscription(pkt_len, uart_buf);
              break;
  
