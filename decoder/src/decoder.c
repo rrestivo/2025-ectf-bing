@@ -310,11 +310,12 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     }
 
     // Debug: Received packet length
-    // sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
+    sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
+    print_debug(debug_buf);
 
     // Debug: Read encryption key from header file
-    // print_debug("DEBUG: READ ENCRYPTION KEY FROM HEADER FILE");
-    // print_hex_debug(secret_key, 16);
+    print_debug("DEBUG: READ ENCRYPTION KEY FROM HEADER FILE");
+    print_hex_debug(secret_key, 16);
 
 
     /******************* Starting Outer Layer Decryption *******************/
