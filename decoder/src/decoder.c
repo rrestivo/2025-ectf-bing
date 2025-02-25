@@ -135,12 +135,12 @@ static timestamp_t last_timestamps[MAX_CHANNEL_COUNT] = {0};
 /** @brief Checks whether the decoder is subscribed to a given channel
  *
  *  @param channel The channel number to be checked.
- *  @return 1 if the the decoder is subscribed to the channel.  0 if not.
+ *  @return 0 if emergency channel. key index 1-8 if subscribed channel. -1 if not subscribed.
 */
 int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     // Check if this is an emergency broadcast message
     if (channel == EMERGENCY_CHANNEL) {
-        return 1;
+        return 0;
     }
     
     // Check if the decoder has has a subscription - > might be off by one error -> make sure it is not checking for channel 9
@@ -159,16 +159,16 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
             if (timestamp <= last_timestamps[i]) {
                 STATUS_LED_RED();
                 print_debug("------ Timestamp not increasing. Rejecting frame. ------");
-                return 0; // Reject frame due to non-monotonic timestamp
+                return -1; // Reject frame due to non-monotonic timestamp
             }
 
             // Update last processed timestamp (stored in RAM only)
             last_timestamps[i] = timestamp;
 
-            return 1;
+            return (i+1);   //return key number to be used
         }
     }
-    return 0;
+    return -1;
 }
 
 
@@ -237,7 +237,7 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     }
     uint8_t trimmed_message[sizeof(subscription_update_packet_t)];
     memcpy(trimmed_message, decrypted_update, sizeof(subscription_update_packet_t));
-    subscription_update_packet_t *safe_update = (subscription_update_packet_t *)decrypted_update;
+    subscription_update_packet_t *safe_update = (subscription_update_packet_t *)trimmed_message;
 
     // sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
     // print_debug(debug_buf);
@@ -336,15 +336,6 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
     print_debug("------ Leaving decrypt_sym function ------");
 
-    // // Print the first 12 bytes as hex
-    // char header_hex[25];  // Enough space for 12 bytes * 2 chars/byte + 1 null terminator
-    // for (int i = 0; i < 12; i++) {
-    //     sprintf(&header_hex[i * 2], "%02x", decrypted_frame[i]);
-    // }
-    // sprintf(debug_buf, "Decrypted Header: %s", header_hex);
-    // print_debug(debug_buf);
-
-
 
     // cast the raw data as a frame_packet type in order to easily read the data.
     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
@@ -374,23 +365,44 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
 
     /********************************  END DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
-    //  Check subscription validity
-    if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
-        print_debug("------ Valid Subscription Detected ------");
-        // Buffer to hold the decrypted message after 2nd decrypt
-        uint8_t decrypted_message[padded_data_size];     
-        memcpy(decrypted_message, decrypted_packet->data, padded_data_size);
-        if (decrypt_sym(decrypted_packet->data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
+    // Buffer to hold the decrypted message after 2nd decrypt
+    uint8_t decrypted_message[padded_data_size];  // decrypted data with padding
+    uint8_t trimmed_encrypted_data[padded_data_size];  // encrypted data with padding 
+    memcpy(trimmed_encrypted_data, decrypted_packet->data, padded_data_size); // trim encrypted message with padding
+    uint8_t trimmed_message[decrypted_packet->size];  // decrypted message without padding
+    /*
+    -1 -> received unsiubscribed channel data
+    0 -> channel 0
+    1-8 -> use that key for decrypt 
+    */
+    int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
+    if ((subscribe_ret > 0) && (subscribe_ret <= 8)) {
+        print_debug("------ Subscribed Channel using key 1-8 ------");
+        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
         }
-        uint8_t trimmed_message[decrypted_packet->size];
+        
         // this will trim off the padding from the data
         memcpy(trimmed_message, decrypted_message, decrypted_packet->size);
         // expects uint16_t casting 32 as 16 here - max val will be 15 so this works fine
         write_packet(DECODE_MSG, trimmed_message, (uint16_t)decrypted_packet->size);
         return 0;
-    } else {
+    }
+    else if(subscribe_ret == 0){
+        print_debug("------ Subscribed Channel using key 1-8 ------");
+        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
+            print_debug("Failed to decrypt message");
+            return -1;
+        }
+        
+        // this will trim off the padding from the data
+        memcpy(trimmed_message, decrypted_message, decrypted_packet->size);
+        // expects uint16_t casting 32 as 16 here - max val will be 15 so this works fine
+        write_packet(DECODE_MSG, trimmed_message, (uint16_t)decrypted_packet->size);
+        return 0;
+    }
+    else {
         STATUS_LED_RED();
         sprintf(output_buf, "Receiving unsubscribed channel data. Channel: %u", decrypted_packet->channel);
         print_debug(output_buf);
@@ -486,6 +498,10 @@ void init() {
          STATUS_LED_WHITE();
         
          result = read_packet(&cmd, uart_buf, &pkt_len);
+         if(result == -1){
+            print_error("packet recieved exceeded max packet size!");
+            continue;
+         }
         
          // Debug: Print command received
          sprintf(output_buf, "Received Command: %d", cmd);
