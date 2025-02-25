@@ -1,3 +1,7 @@
+ $ git clone --branch read-only --single-branch https://github.com/rrestivo/2025-ectf-bing.git
+git branch
+
+ 
  python3.11 -m venv .venv --prompt shanks_elbaf
 raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/Base_ECTF_CODE/2025-ectf-insecure-example$ source .venv/bin/activate
 
@@ -6,6 +10,7 @@ docker run --rm -v ./decoder/:/decoder -v ./global.secrets:/global.secrets:ro -v
 
 port : /dev/ttyACM0
 
+python -m ectf25_design.gen_subscription global.secrets deadbeef_c1.sub 0xDEADBEEF 32 1200000000000000000000000000000 1
 python3.11 -m ectf25.utils.tester --port /dev/ttyACM0 -s global.secrets rand -c 1 -f 64
 
 python3.11 -m ectf25.tv.subscribe deadbeef_c1.sub /dev/ttyACM0

@@ -19,37 +19,33 @@ from loguru import logger
 
 
 def gen_secrets(channels: list[int]) -> bytes:
-    """Generate the contents secrets file
-
-    This will be passed to the Encoder, ectf25_design.gen_subscription, and the build
-    process of the decoder
+    """Generate secrets file with a key for each channel and an extra key (secret_key).
 
     :param channels: List of channel numbers that will be valid in this deployment.
         Channel 0 is the emergency broadcast, which will always be valid and will
-        NOT be included in this list
+        NOT be included in this list.
 
-    :returns: Contents of the secrets file
+    :returns: Contents of the secrets file.
     """
-    # TODO: Update this function to generate any system-wide secrets needed by
-    #   your design
-
-    # Generate a **secure random 128-bit key**
-    random_key = secrets.token_bytes(16)  # 16 bytes = 128 bits
-
-    # Convert the key to a hex string (matches the format of the hardcoded example)
-    key_hex_string = random_key.hex()
-
-    # Store the channels and generated key in the secrets dictionary
+    # Dictionary to store secrets
     secrets_dict = {
         "channels": channels,
-        "some_secrets": key_hex_string,  # Store the key as a hex string
+        "channel_keys": {},  # Store a unique key for each channel
     }
 
-    logger.debug(f"Generated random secret key: {key_hex_string}")
+    logger.info(f"Generating secrets for channels: {channels}")
 
-    # NOTE: if you choose to use JSON for your file type, you will not be able to
-    # store binary data, and must either use a different file type or encode the
-    # binary data to hex, base64, or another type of ASCII-only encoding
+    # Generate a unique 128-bit key for each channel
+    for channel in channels:
+        channel_key = secrets.token_bytes(16)  # Generate a 128-bit key
+        secrets_dict["channel_keys"][channel] = channel_key.hex()  # Store as hex string
+        logger.debug(f"Generated key for channel {channel}: {channel_key.hex()}")
+
+    # Generate an extra key (secret_key)
+    secret_key = secrets.token_bytes(16)
+    secrets_dict["secret_key"] = secret_key.hex()
+    logger.debug(f"Generated extra key (secret_key): {secret_key.hex()}")
+
     return json.dumps(secrets_dict).encode()
 
 
@@ -64,21 +60,21 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
         with open(secrets_file, "r") as f:
             secrets = json.load(f)
 
-        # Extract the key
-        secret_value = secrets.get("some_secrets", "")
-        if not secret_value:
-            logger.error("Error: 'some_secrets' key is missing in secrets file.")
+        # Extract keys
+        channel_keys = secrets.get("channel_keys", {})
+        secret_key = secrets.get("secret_key", "")
+
+        if not channel_keys or not secret_key:
+            logger.error("Error: Missing required keys in secrets file.")
             return
 
-        # Convert hex string to an actual byte array
-        try:
-            key_bytes = bytes.fromhex(secret_value)
-        except ValueError:
-            logger.error("Error: 'some_secrets' is not a valid hex string.")
-            return
+        # Convert keys to C-style array format
+        channel_keys_c = {
+            channel: ", ".join(f"0x{b:02X}" for b in bytes.fromhex(key))
+            for channel, key in channel_keys.items()
+        }
 
-        # Convert byte array to C-style array format
-        key_hex = ", ".join(f"0x{b:02X}" for b in key_bytes)
+        secret_key_hex = ", ".join(f"0x{b:02X}" for b in bytes.fromhex(secret_key))
 
         # Ensure the output directory exists
         header_file.parent.mkdir(parents=True, exist_ok=True)
@@ -88,7 +84,14 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
             f.write("#ifndef SECRETS_H\n")
             f.write("#define SECRETS_H\n\n")
             f.write("#include <stdint.h>\n\n")
-            f.write(f"static const uint8_t secret_key[16] = {{ {key_hex} }};\n\n")
+
+            # Write the channel keys
+            for channel, key_hex in channel_keys_c.items():
+                f.write(f"static const uint8_t channel_{channel}_key[16] = {{ {key_hex} }};\n")
+
+            # Write the extra secret_key
+            f.write(f"\nstatic const uint8_t secret_key[16] = {{ {secret_key_hex} }};\n\n")
+
             f.write("#endif // SECRETS_H\n")
 
         logger.success(f"Generated {header_file}")
@@ -98,9 +101,9 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
 
 
 def parse_args():
-    """Define and parse the command line arguments
+    """Define and parse the command line arguments.
 
-    NOTE: Your design must not change this function
+    NOTE: Your design must not change this function.
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -125,31 +128,26 @@ def parse_args():
 
 
 def main():
-    """Main function of gen_secrets
-
-    You will likely not have to change this function
-    """
+    """Main function of gen_secrets."""
     # Parse the command line arguments
     args = parse_args()
 
+    # Generate secrets
     secrets = gen_secrets(args.channels)
 
-    # Print the generated secrets for your own debugging
-    # Attackers will NOT have access to the output of this, but feel free to remove
-    #
-    # NOTE: Printing sensitive data is generally not good security practice
+    # Print the generated secrets for debugging
     logger.debug(f"Generated secrets: {secrets}")
 
-    # Open the file, erroring if the file exists unless the --force arg is provided
+    # Write secrets to file
     with open(args.secrets_file, "wb" if args.force else "xb") as f:
-        # Dump the secrets to the file
         f.write(secrets)
 
-    # For your own debugging. Feel free to remove
     logger.success(f"Wrote secrets to {str(args.secrets_file.absolute())}")
-    # Generate the `secrets.h` file in `inc/`
+
+    # Generate the `secrets.h` file in `decoder/inc/`
     secrets_header_path = Path("./decoder/inc/secrets.h")
     generate_secrets_header(args.secrets_file, secrets_header_path)
+
 
 if __name__ == "__main__":
     main()
