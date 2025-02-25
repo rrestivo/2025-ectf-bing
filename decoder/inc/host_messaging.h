@@ -22,7 +22,7 @@
 #define CMD_TYPE_LEN sizeof(char)
 #define CMD_LEN_LEN sizeof(uint16_t)
 #define MSG_MAGIC '%'     // '%' - 0x25
-#define MAX_PACKET_SIZE 80
+#define MAX_PACKET_SIZE 100
 
 
 typedef enum {

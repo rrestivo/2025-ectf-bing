@@ -198,12 +198,10 @@ int read_packet(msg_type_t* cmd, void *buf, uint16_t *len) {
     *   Ensure read bytes does not cause an overflow
     *   Uart buffer is of size 100 but pkt_len can be up to MAX_INT
     */ 
-    int check_length(size_t *len) {
-        if (*len > MAX_PACKET_SIZE) {
-            return -1;
-        }
-        return 0;
+    if (*len > MAX_PACKET_SIZE) {
+        return -1;
     }
+
 
     if (header.cmd != ACK_MSG) {
         write_ack();  // ACK the header
