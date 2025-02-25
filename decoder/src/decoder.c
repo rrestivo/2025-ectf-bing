@@ -217,7 +217,8 @@ int list_channels() {
 int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     //TODO: Decrypt update packet. 
     // Padding: Make sure its divisible by 16
-    //uint8_t decrypted_update[pkt_len];
+    
+    // Buffer to hold the decrypted packet data
     uint8_t decrypted_update[sizeof(subscription_update_packet_t)];  
     char debug_buf[100];
 
