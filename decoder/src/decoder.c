@@ -325,7 +325,7 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
     // Decrypt the first layer of the packet
     uint8_t first_decrypt[pkt_len - 16];
-    int dec_ret = decrypt_cbc(new_frame + 16, pkt_len - 16, (uint8_t*)secret_key, first_decrypt);
+    int dec_ret = decrypt_cbc(new_frame, pkt_len - 16, (uint8_t*)secret_key, first_decrypt);
 
     // Sanity Check: Check if there was error with packet length
     if(dec_ret == -1) print_debug("__________PACKET LENGTH ERROR__________");
@@ -360,6 +360,7 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
     // Calculate the size of the Padded frame data (size of the frame + padding)
     int padded_data_size = 0;
+    
     if(((int)decrypted_packet->size % 16) != 0){
         padded_data_size = (decrypted_packet->size + (16 - ((int)decrypted_packet->size % 16)));
         sprintf(debug_buf, "********* Calculated size of padded data = %d ***********", padded_data_size);
@@ -367,9 +368,12 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     }
     else{
         padded_data_size = decrypted_packet->size;
+        sprintf(debug_buf, "********* Calculated size of non padded data = %d ***********", padded_data_size);
+        print_debug(debug_buf);
     }
 
     // Functional Requirement: Check subscription validity
+    print_debug("Checking subscription validity...");
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
         print_debug("Channel is subscribed. Decrypting frame data...");
         uint8_t decrypted_message[padded_data_size];
@@ -392,7 +396,7 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     else {
         STATUS_LED_RED();
         sprintf(output_buf, "Receiving unsubscribed channel data. Channel: %u", decrypted_packet->channel);
-        // print_debug(output_buf);
+        print_debug(output_buf);
         return -1;
     }
 

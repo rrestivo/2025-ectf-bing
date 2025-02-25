@@ -24,4 +24,5 @@ python -m ectf25.tv.list COM6
 
 // Testing Decoder
 python -m ectf25.utils.tester --port COM6 -s .\global.secrets rand -c 1 -f 64
+python -m ectf25.utils.tester --port COM6 -s .\global.secrets stdin
 
