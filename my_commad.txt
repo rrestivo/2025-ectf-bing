@@ -1,14 +1,27 @@
- python3.11 -m venv .venv --prompt shanks_elbaf
-raj@Vivek:/mnt/c/Users/rajvi/OneDrive/Desktop/Base_ECTF_CODE/2025-ectf-insecure-example$ source .venv/bin/activate
+./.venv/Scripts/activate
 
-docker run --rm -v ./decoder/:/decoder -v ./global.secrets:/global.secrets:ro -v ./deadbeef_build:/out -e DECODER_ID=0xdeadbeef build-decoder
+python -m pip install .\tools\
+python -m pip install -e .\design\
 
+// Create Global Secrets
+python -m ectf25_design.gen_secrets -f global.secrets 1 3 4
 
-port : /dev/ttyACM0
+// Create Docker Image
+docker build -t build-decoder .\decoder
 
-python3.11 -m ectf25.utils.tester --port /dev/ttyACM0 -s global.secrets rand -c 1 -f 64
+// Build Docker
+docker run --rm -v .\decoder/:/decoder -v .\global.secrets:/global.secrets -v .\deadbeef_build:/out -e DECODER_ID=0xdeadbeef build-decoder
 
-python3.11 -m ectf25.tv.subscribe deadbeef_c1.sub /dev/ttyACM0
+// Create Subscription
+python -m ectf25_design.gen_subscription global.secrets -f deadbeef_c1.sub 0xDEADBEEF 32 128 1
 
+// Flashing
+python -m ectf25.utils.flash .\deadbeef_build\max78000.bin COM6
 
-python3.11 -m ectf25.utils.flash ./deadbeef_build/max78000.bin /dev/ttyACM1
+// Testing Subscription update
+python -m ectf25.tv.subscribe .\deadbeef_c1.sub COM6 
+python -m ectf25.tv.list COM6
+
+// Testing Decoder
+python -m ectf25.utils.tester --port COM6 -s .\global.secrets rand -c 1 -f 64
+

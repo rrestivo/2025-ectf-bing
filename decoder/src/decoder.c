@@ -221,8 +221,8 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     char debug_buf[100];
 
     // Debug: Received packet length
-    // sprintf(debug_buf, "Received Packet Length: %d (Should be multiple of 16)", pkt_len);
-    // print_debug(debug_buf);
+    sprintf(debug_buf, "Received Packet Length: %d (Should be multiple of 16)", pkt_len);
+    print_debug(debug_buf);
 
 
     // Change: Changed to decrypt_cbc
@@ -243,17 +243,17 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     memcpy(trimmed_message, decrypted_update, sizeof(subscription_update_packet_t));
     subscription_update_packet_t *safe_update = (subscription_update_packet_t *)decrypted_update;
 
-    // sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
-    // print_debuug(debug_buf);
+    sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
+    print_debug(debug_buf);
     
     // Debug: Check struct field values
-    // sprintf(debug_buf, "Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", safe_update->decoder_id, safe_update->start_timestamp, safe_update->end_timestamp, safe_update->channel);
-    // print_debug(debug_buf);
+    sprintf(debug_buf, "Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", safe_update->decoder_id, safe_update->start_timestamp, safe_update->end_timestamp, safe_update->channel);
+    print_debug(debug_buf);
 
 
     // Debug: Check if the received structure size matches expected size
-    // sprintf(debug_buf, "Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
-    // print_debug(debug_buf);
+    sprintf(debug_buf, "Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
+    print_debug(debug_buf);
 
     int i;
 
@@ -346,6 +346,18 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     // Cast the raw data as a frame_packet type in order to easily read the data. (the member data also has the frame IV and the padding)
     frame_packet_t *decrypted_packet = (frame_packet_t *)first_decrypt;
 
+    channel_id_t channel;
+    timestamp_t timestamp;
+    data_len_t frame_size;
+
+    memcpy(&channel, first_decrypt, sizeof(channel_id_t));
+    memcpy(&timestamp, first_decrypt + 4, sizeof(timestamp_t));
+    memcpy(&frame_size, first_decrypt + 12, sizeof(data_len_t));
+
+    // Debug: Print the extracted channel, timestamp, and frame size
+    sprintf(debug_buf, "Channel: %u, Timestamp: %llu, Frame Size: %u", channel, timestamp, frame_size);
+    print_debug(debug_buf);
+
     // Calculate the size of the Padded frame data (size of the frame + padding)
     int padded_data_size = 0;
     if(((int)decrypted_packet->size % 16) != 0){
@@ -359,9 +371,9 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
     // Functional Requirement: Check subscription validity
     if (is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp)) {
-
+        print_debug("Channel is subscribed. Decrypting frame data...");
         uint8_t decrypted_message[padded_data_size];
-        memcpy(decrypted_message, decrypted_packet->data + 16, padded_data_size);
+        memcpy(decrypted_message, decrypted_packet->data, padded_data_size);
 
         // Decrypt the frame data
         if (decrypt_cbc(decrypted_packet->data, padded_data_size + 16, (uint8_t*)secret_key, decrypted_message) != 0) {

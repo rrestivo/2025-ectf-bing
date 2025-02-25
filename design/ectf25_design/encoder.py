@@ -146,7 +146,7 @@ class Encoder:
         logger.success(f"Final encryption complete. Encrypted Packet Size: {len(encrypted_packet)} bytes")
         
         return encrypted_packet
-        #return struct.pack("<IQ", channel, timestamp) + frame
+        #return outer_iv + struct.pack("<IQ", channel, timestamp) + frame_iv + frame
 
 
 def main():

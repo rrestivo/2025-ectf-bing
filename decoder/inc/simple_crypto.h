@@ -17,6 +17,7 @@
 
 #include "wolfssl/wolfcrypt/aes.h"
 #include "wolfssl/wolfcrypt/hash.h"
+#include "wolfssl/options.h"
 
 /******************************** MACRO DEFINITIONS ********************************/
 #define BLOCK_SIZE AES_BLOCK_SIZE
@@ -25,6 +26,7 @@
 
 // Change: Enable direct access to AES functions
 #define WOLFSSL_AES_DIRECT
+#define WOLFSSL_AES_CBC
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
