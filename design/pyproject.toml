@@ -12,7 +12,6 @@ dependencies = [
     "loguru",
     "cryptography",
     "pyOpenSSL",
-    "os"
 ]
 
 [tool.black]
