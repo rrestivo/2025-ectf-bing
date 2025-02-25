@@ -225,7 +225,8 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     //print_debuug(debug_buf);
 
 
-    int check  = decrypt_sym(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
+    // Change: Changed to decrypt_cbc
+    int check  = decrypt_cbc(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
     if(check == 0){
         //print_debuug("Decryption Success! -> update_subscriptions()");
     }else if(check == -1){

@@ -23,6 +23,9 @@ IPATH+=inc/
 IPATH+=/secrets
 VPATH+=src/
 
+# Change: Add wolfSSL library flag for enabling access to CBC decryption
+PROJ_CFLAGS += -DWOLFSSL_AES_DIRECT
+
 # ****************** eCTF Bootloader *******************
 # DO NOT REMOVE
 LINKERFILE=firmware.ld

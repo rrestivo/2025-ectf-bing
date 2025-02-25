@@ -20,6 +20,8 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 
+# Change: New imports
+import os
 
 class SubscriptionGenerator:
     """Handles subscription encryption with proper padding (mod 16 for AES)."""
@@ -45,10 +47,14 @@ class SubscriptionGenerator:
         :param data: The plaintext data to encrypt.
         :return: Encrypted bytes.
         """
-        cipher = Cipher(algorithms.AES(self.key), modes.ECB(), backend=default_backend())
+        # Change: New variable, addded CBC mode
+        iv = os.urandom(16)
+        cipher = Cipher(algorithms.AES(self.key), modes.CBC(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(data) + encryptor.finalize()
-        return encrypted_data
+        
+        # Change: Added the IV to the encrypted data
+        return iv + encrypted_data
 
     def _pad_data(self, data: bytes) -> bytes:
         """
@@ -75,11 +81,13 @@ class SubscriptionGenerator:
         # Pack subscription fields into a binary format (little-endian order)
         packet = struct.pack("<IQQI", device_id, start, end, channel)
 
-        padding_length = 16 - (len(packet) % 16)
-        packet += b'\x00' * padding_length
+        # Change: Removed padding calculation and used the _pad_data function
+        # padding_length = 16 - (len(packet) % 16)
+        # packet += b'\x00' * padding_length
+        padded_packet = self._pad_data(packet)
 
         # Encrypt the padded subscription packet
-        encrypted_packet = self._encrypt(packet)
+        encrypted_packet = self._encrypt(padded_packet)
         logger.debug(f"Encrypted subscription packet: {encrypted_packet.hex()}")
 
         return encrypted_packet

@@ -90,6 +90,37 @@ int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintex
     return 0;
 }
 
+/** @brief Decrypts ciphertext using AES-CBC mode.
+ *
+ * @param ciphertext A pointer to a buffer containing the encrypted data (IV + Ciphertext)
+ * @param len The length of the encrypted data. Must be at least BLOCK_SIZE + IV_SIZE
+ * @param key A pointer to a buffer of length KEY_SIZE (16 bytes) containing the key to use
+ * @param plaintext A pointer to a buffer where the resulting plaintext will be written
+ *
+ * @return 0 on success, -1 on invalid length, other non-zero for errors
+ */
+int decrypt_cbc(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext) { 
+    Aes ctx;
+    int result;
+
+    // Change: Ensure the length is at least 16 bytes (IV size) and a multiple of BLOCK_SIZE
+    if (len <= BLOCK_SIZE || (len % BLOCK_SIZE) != 0) 
+        return -1; 
+
+    // CHANGED: Extract IV from the ciphertext
+    uint8_t iv[BLOCK_SIZE];
+    memcpy(iv, ciphertext, BLOCK_SIZE);
+
+    // CHANGED: Initialize AES context with CBC mode
+    result = wc_AesSetKey(&ctx, key, 16, iv, AES_DECRYPTION);
+    if (result != 0)
+        return result; 
+
+    // CHANGED: Decrypt ciphertext, skipping the IV (first 16 bytes)
+    result = wc_AesCbcDecrypt(&ctx, plaintext, ciphertext + BLOCK_SIZE, len - BLOCK_SIZE);
+    return result;
+}
+
 /** @brief Hashes arbitrary-length data
  *
  * @param data A pointer to a buffer of length len containing the data

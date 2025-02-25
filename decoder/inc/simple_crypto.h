@@ -23,6 +23,8 @@
 #define KEY_SIZE 16
 #define HASH_SIZE MD5_DIGEST_SIZE
 
+// Change: Enable direct access to AES functions
+#define WOLFSSL_AES_DIRECT
 /******************************** FUNCTION PROTOTYPES ********************************/
 /** @brief Encrypts plaintext using a symmetric cipher
  *
@@ -53,6 +55,18 @@ int encrypt_sym(uint8_t *plaintext, size_t len, uint8_t *key, uint8_t *ciphertex
  * @return 0 on success, -1 on bad length, other non-zero for other error
  */
 int decrypt_sym(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext);
+
+// Change: Function prototype for AES-CBC decryption
+/** @brief Decrypts ciphertext using AES-CBC mode.
+ *
+ * @param ciphertext A pointer to a buffer containing the encrypted data (IV + Ciphertext)
+ * @param len The length of the encrypted data. Must be at least BLOCK_SIZE + IV_SIZE
+ * @param key A pointer to a buffer of length KEY_SIZE (16 bytes) containing the key to use
+ * @param plaintext A pointer to a buffer where the resulting plaintext will be written
+ *
+ * @return 0 on success, -1 on invalid length, other non-zero for errors
+ */
+int decrypt_cbc(uint8_t *ciphertext, size_t len, uint8_t *key, uint8_t *plaintext);
 
 /** @brief Hashes arbitrary-length data
  *
