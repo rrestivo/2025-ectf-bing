@@ -18,6 +18,9 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
 from loguru import logger
 
+# Change: New imports
+import os
+
 class Encoder:
     def __init__(self, secrets: bytes):
         """
@@ -45,13 +48,20 @@ class Encoder:
         
     
     def _encrypt(self, data: bytes, key: bytes) -> bytes:
-        """Encrypt data using AES-ECB mode"""
+        """Encrypt data using AES-CBC mode"""
         logger.debug(f"Encrypting data with key: {key.hex()}")
-        # TODO: handle exceptiopns from crypto library
-        cipher = Cipher(algorithms.AES(key), modes.ECB(), backend=default_backend())
+        
+        # CHANGE: Generate a random 16-byte IV
+        iv = os.urandom(16)  
+        logger.debug(f"Generated IV: {iv.hex()}")
+        
+        # TODO: handle exceptions from crypto library
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(data) + encryptor.finalize()
-        return encrypted_data
+        
+        # Change: Prepended IV to encrypted data
+        return iv + encrypted_data
     
     def encode(self, channel: int, frame: bytes, timestamp: int) -> bytes:
         """The frame encoder function

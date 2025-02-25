@@ -53,7 +53,7 @@ class SubscriptionGenerator:
         encryptor = cipher.encryptor()
         encrypted_data = encryptor.update(data) + encryptor.finalize()
         
-        # Change: Added the IV to the encrypted data
+        # Change: Prepended the IV to the encrypted data
         return iv + encrypted_data
 
     def _pad_data(self, data: bytes) -> bytes:
@@ -81,13 +81,13 @@ class SubscriptionGenerator:
         # Pack subscription fields into a binary format (little-endian order)
         packet = struct.pack("<IQQI", device_id, start, end, channel)
 
-        # Change: Removed padding calculation and used the _pad_data function
-        # padding_length = 16 - (len(packet) % 16)
-        # packet += b'\x00' * padding_length
-        padded_packet = self._pad_data(packet)
+        # Suggested Change: Removed padding calculation and used the _pad_data function
+        padding_length = 16 - (len(packet) % 16)
+        packet += b'\x00' * padding_length
+        # padded_packet = self._pad_data(packet)
 
         # Encrypt the padded subscription packet
-        encrypted_packet = self._encrypt(padded_packet)
+        encrypted_packet = self._encrypt(packet)
         logger.debug(f"Encrypted subscription packet: {encrypted_packet.hex()}")
 
         return encrypted_packet
