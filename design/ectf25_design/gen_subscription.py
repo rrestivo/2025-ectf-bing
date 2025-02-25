@@ -34,7 +34,7 @@ class SubscriptionGenerator:
         secrets_dict = json.loads(secrets)
 
         # Extract the AES encryption key (stored as a hex string)
-        self.key = bytes.fromhex(secrets_dict["some_secrets"])
+        self.key = bytes.fromhex(secrets_dict["secret_key"])
 
         logger.debug(f"Loaded AES encryption key: {self.key.hex()}")
 

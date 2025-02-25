@@ -164,7 +164,9 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
 
             // Update last processed timestamp (stored in RAM only)
             last_timestamps[i] = timestamp;
-
+            char debug_buf[100];
+            sprintf(debug_buf, "is subscribe returns -> using key %d\n", i+1);
+            print_debug(debug_buf);
             return (i+1);   //return key number to be used
         }
     }
@@ -378,7 +380,10 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
     if ((subscribe_ret > 0) && (subscribe_ret <= 8)) {
         print_debug("------ Subscribed Channel using key 1-8 ------");
-        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
+        print_hex_debug((uint8_t*)channel_keys[subscribe_ret-1].key, 16);
+        print_debug("index of key -1");
+        print_hex_debug((uint8_t*)channel_keys[subscribe_ret].key, 16);
+        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)channel_keys[subscribe_ret].key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
         }
@@ -390,7 +395,7 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
         return 0;
     }
     else if(subscribe_ret == 0){
-        print_debug("------ Subscribed Channel using key 1-8 ------");
+        print_debug("------ Channel 0------");
         if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
@@ -460,6 +465,26 @@ void init() {
         // if uart fails to initialize, do not continue to execute
         while (1);
     }
+    /* Peripherial Stuff here */
+    /*
+    int rand_init = MXC_TRNG_Init(void);
+    if(rand_init == 0){
+        print_debug("TRNG init successful");
+    }
+    else{
+        char debug_buf[100];
+        sprintf(debug_buf, "error from true rand number gen = %d\n", rand_init);
+        print_debug(debug_buf);
+    }	
+
+    
+    
+    */
+
+    //.long WDT0_IRQHandler              /* 0x11  0x0044  17: Watchdog 0 */
+   // int watchdog_ret = MXC_WDT_Shutdown(mxc_wdt_regs_t * wdt);	
+
+
 }
 
 /**********************************************************

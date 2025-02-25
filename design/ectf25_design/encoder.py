@@ -54,18 +54,12 @@ class Encoder:
 
         # --------------- Step 1: Calculate padding for frame to nearest multiple of 16
         frame_size = len(frame)
-        next_multiple_of_16 = (frame_size + 15) // 16 * 16
-        padd_diff = next_multiple_of_16 - frame_size
-
-        logger.info(f"Padding calculated to reach multiple of 16: {padd_diff} bytes")
-
-        # Step 2: Append padding at the end of the frame
-        padded_frame = frame + b'\x00' * padd_diff
-        logger.debug(f"Final padded frame length: {len(padded_frame)} bytes (Multiple of 16)")
+        if frame_size % 16 != 0:
+            frame_padding = 16 - (frame_size % 16)
+            frame += b'\x00' * frame_padding
 
         # Step 3: Choose encryption key
         if channel == 0:
-            
             # Using  secret_key for channel 0 in both encryptions
             channel_key = self.secret_key  
         else:
@@ -76,21 +70,21 @@ class Encoder:
         logger.info(f"Using encryption key for channel {channel}: {channel_key.hex()}")
 
         #------- Step 4: First encryption layer on (padded frame)
-        encrypted_frame = self._encrypt(padded_frame, channel_key)
+        encrypted_frame = self._encrypt(frame, channel_key)
         logger.success(f"First encryption complete for channel {channel}. Encrypted Frame Size: {len(encrypted_frame)} bytes")
 
         # ---------- Step 5: Pack header (channel_id + timestamp + padd_done)
-        header = struct.pack("<IQI", channel, timestamp, padd_diff)
-        logger.debug(f"Packed Header Structure (Hex): {header.hex()} (Channel = {channel}, Timestamp = {timestamp}, Padd_Done = {padd_diff})")
+        header = struct.pack("<IQI", channel, timestamp, frame_size)
+        logger.debug(f"Packed Header Structure (Hex): {header.hex()} (Channel = {channel}, Timestamp = {timestamp}, frame size = {frame_size})")
 
         #---------- Step 6: Create full packet
         full_packet = header + encrypted_frame
         logger.debug(f"Full Packet Length Before Final Padding: {len(full_packet)} bytes")
 
         #------------ Step 7:  padding to make the full packet a multiple of 16
-        final_size_multiple_of_16 = (len(full_packet) + 15) // 16 * 16
-        final_padding_length = final_size_multiple_of_16 - len(full_packet)
-        full_packet += b'\x00' * final_padding_length
+        if len(full_packet) %16 != 0:
+            padding_length = 16 - (len(full_packet) %16) 
+            full_packet += b'\x00' * padding_length
 
         logger.info(f"Final Packet Size After Padding: {len(full_packet)} bytes (Multiple of 16)")
         logger.debug(f"Final Packet Before Second Encryption (Hex): {full_packet.hex()}")
