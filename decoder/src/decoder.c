@@ -298,44 +298,24 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
  * @brief Processes a packet containing frame data.
  *
  * @param pkt_len Length of the incoming packet.
- * @param new_frame A pointer to the incoming packet.
+ * @param new_frame A pointer to the incoming encrypted packet.
  *
  * @return 0 if successful, -1 if data is from unsubscribed channel.
  */
 int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     char output_buf[128] = {0};
-    char debug_buf[128] = {0};
     uint8_t decrypted_frame[pkt_len];
-   
 
-    print_debug(debug_buf);
-    
     // check that the packet_len is not greater than the maximum packet size
     if(pkt_len > MAX_PACKET_SIZE){
         print_error("PACKET LENGTH EXCEEDS MAX PACKET SIZE");
         return -1;
     }
-    /********************************** DEBUG *****************************************************/
-
-    // Debug: Received packet length
-    sprintf(debug_buf, "Received Packet Length: %d bytes", pkt_len);
-    // print_debug(debug_buf);
-    /********************************** DEBUG END*****************************************************/
-    /********************************** KEY TEST DEBUG *****************************************************/
-
-
-    // print_debug("DEBUG: READ ENCRYPTION KEY FROM HEADER FILE");
-    //print_hex_debug(secret_key, 16);
     
-
-    /********************************** KEY TEST END *****************************************************/
-
-
-    ///////////////////////////// FIRST DECRYPT //////////////////////////////////////////////////////////////////////////////
-
     // Add a short randomized delay before decryption
     uint32_t rand_delay = MXC_TRNG_RandomInt() % 1000; // Random delay up to 999 microseconds
-    sprintf(debug_buf, "error from true rand number gen = %d\n", rand_delay);
+    //sprintf(debug_buf, "error from true rand number gen = %d\n", rand_delay);
+    
     //MXC_TMR_Delay(rand_delay);
     int delay_count = 0;
     while(delay_count != rand_delay){
@@ -344,73 +324,55 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
         waste-=10;
         delay_count++;
     }
-    // print_debug("------ Entering decrypt_sym function ------");
-    int dec_ret = decrypt_sym(new_frame, pkt_len, (uint8_t*)secret_key, decrypted_frame);
-    if(dec_ret == -1)// print_debug("__________PACKET LENGTH ERROR________________");
 
-    if (dec_ret != 0) {
-        // print_debug("--------------- Failed to decrypt frame ---------------------------");
-        return -1; 
+    // Perform first round of decryption on entire packet
+    if (decrypt_sym(new_frame, pkt_len, (uint8_t*)secret_key, decrypted_frame) != 0) {
+        return -1; // decryption failed
     }
-
-    // print_debug("------ Leaving decrypt_sym function ------");
-
 
     // cast the raw data as a frame_packet type in order to easily read the data.
     frame_packet_t *decrypted_packet = (frame_packet_t *)decrypted_frame;
+
+    /*
+    * This will calulate the size of the data with padding included.
+    * decrypted_packet->size used here is the size of the data without padding
+    * Padding needed for decryption to be successful (16 byte block size)
+    */
     int padded_data_size = 0;
-    //calc size of untrimmed message size for decryption
     if(((int)decrypted_packet->size % 16) != 0){
-        padded_data_size = (decrypted_packet->size + (16 - ((int)decrypted_packet->size % 16)));
-        sprintf(debug_buf, "********* Calculated size of padded data = %d ***********", padded_data_size);
-        // print_debug(debug_buf);
+        padded_data_size = (decrypted_packet->size + (16 - ((int)decrypted_packet->size % 16))); // rounds up to nearst multiple of 16
     }
     else{
         padded_data_size = decrypted_packet->size;
     }
 
-    /********************************CHECK IF ENCRYPTION SUCCESSFUL************************************************ */
-    sprintf(debug_buf, "channel ->  %i timestamp -> %llu, size -> %i", decrypted_packet->channel, decrypted_packet->timestamp, decrypted_packet->size);
-    // print_debug(debug_buf);
-
-
-
-
-    /******************************** DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
-    // Debug: Check alignment issue
-    if (sizeof(decrypted_packet->data) % 16 != 0) {
-        // print_debug("FRAME PACKET NOT DIV BY 16 ERROR!!!!");
-    }
-
-
-    /********************************  END DEBUG AFTER decrypt 1 BEFORE decrypt 2************************************************ */
-    // Buffer to hold the decrypted message after 2nd decrypt
     uint8_t decrypted_message[padded_data_size];  // decrypted data with padding
     uint8_t trimmed_encrypted_data[padded_data_size];  // encrypted data with padding 
-    memcpy(trimmed_encrypted_data, decrypted_packet->data, padded_data_size); // trim encrypted message with padding
+
+    // trims encrypted message with padding
+    memcpy(trimmed_encrypted_data, decrypted_packet->data, padded_data_size); 
     uint8_t trimmed_message[decrypted_packet->size];  // decrypted message without padding
+
     /*
-    -1 -> received unsiubscribed channel data
+    if_subscribed()->
+    -1 -> received unsubscribed channel data
     0 -> channel 0
     1 -> use that key (channel % 10007)
     */
     int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
+    // Subscribed Channel
     if (subscribe_ret == 1) {
-        // print_debug("------ Subscribed Channel using channel_id mod 10007 ------");
-        //print_hex_debug((uint8_t*)all_channel_keys[(int)decrypted_packet->channel-1], 16);
         if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)all_channel_keys[(int)decrypted_packet->channel-1], decrypted_message) != 0) {
-            // print_debug("Failed to decrypt message");
-            return -1;
+            return -1; // decryption failed
         }
         
-        // this will trim off the padding from the data
+        // trims off extra padding
         memcpy(trimmed_message, decrypted_message, decrypted_packet->size);
-        // expects uint16_t casting 32 as 16 here - max val will be 15 so this works fine
         write_packet(DECODE_MSG, trimmed_message, (uint16_t)decrypted_packet->size);
         return 0;
     }
+    // Channel 0
     else if(subscribe_ret == 0){
-        // print_debug("------ Channel 0------");
         if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)secret_key, decrypted_message) != 0) {
             // print_debug("Failed to decrypt message");
             return -1;
@@ -422,10 +384,13 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
         write_packet(DECODE_MSG, trimmed_message, (uint16_t)decrypted_packet->size);
         return 0;
     }
+    // unsubscribed channel data
     else {
         STATUS_LED_RED();
-        sprintf(output_buf, "Receiving unsubscribed channel data. Channel: %u", decrypted_packet->channel);
-        // print_debug(output_buf);
+        sprintf(
+            output_buf,
+            "Receiving unsubscribed channel data.  %u\n", decrypted_packet->channel);
+        print_error(output_buf);
         return -1;
     }
 }
@@ -480,23 +445,12 @@ void init() {
         // if uart fails to initialize, do not continue to execute
         while (1);
     }
-    /* Peripherial Stuff here */
+    /* Peripherial Initilization Here */
 
-    
-
-    int rand_init = MXC_TRNG_Init();
-    if(rand_init == 0){
-        print_debug("TRNG init successful");
+    // initilizes true random number generator
+    if(MXC_TRNG_Init() != 0){
+        print_error("TRNG initilization failed!");
     }
-    else{
-        char debug_buf[100];
-        sprintf(debug_buf, "error from true rand number gen = %d\n", rand_init);
-        print_debug(debug_buf);
-    }	
-    
-
-    //.long WDT0_IRQHandler              /* 0x11  0x0044  17: Watchdog 0 */
-   // int watchdog_ret = MXC_WDT_Shutdown(mxc_wdt_regs_t * wdt);	
 
 
 }
@@ -509,8 +463,8 @@ void init() {
  #include <stdint.h>
  
  int main(void) {
-     char output_buf[128] = {0}; // Buffer for formatted debug messages
-     uint8_t uart_buf[100]; // check overflows here and elsewhere!!!!!!
+     char output_buf[128] = {0};
+     uint8_t uart_buf[100];
      msg_type_t cmd;
      int result;
      uint16_t pkt_len;
@@ -518,37 +472,16 @@ void init() {
      // Initialize the device
      init();
  
-     // Debug: Boot message
-     //print_debug("Decoder Booted!");
- 
-     // Print size of frame_packet_t
-     sprintf(output_buf, "Size of frame_packet_t: %d bytes", (int)sizeof(frame_packet_t));
-     //print_debug(output_buf);
- 
-     // Print size of pkt_len
-     sprintf(output_buf, "Size of pkt_len: %d bytes", (int)sizeof(pkt_len));
-     //print_debug(output_buf);
+     print_debug("Decoder Booted!");
  
      // Process commands forever
      while (1) {
-         //print_debug("Ready");
+         print_debug("Ready");
  
-         //STATUS_LED_GREEN();
-         STATUS_LED_WHITE();
+         STATUS_LED_GREEN();
+ 
         
          result = read_packet(&cmd, uart_buf, &pkt_len);
-         if(result == -1){
-            print_error("packet recieved exceeded max packet size!");
-            continue;
-         }
-        
-         // Debug: Print command received
-         sprintf(output_buf, "Received Command: %d", cmd);
-         //print_debug(output_buf);
- 
-         // Debug: Print packet length
-         sprintf(output_buf, "Packet Length: %d bytes", pkt_len);
-         //print_debug(output_buf);
  
          if (result < 0) {
              STATUS_LED_ERROR();
