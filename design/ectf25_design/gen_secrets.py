@@ -55,72 +55,23 @@ def gen_secrets(channels: list[int]) -> bytes:
         "channel_keys": {},
     }
 
-    logger.info("Generating 10,008 channel keys")
+    #loggger.info("Generating 10,008 channel keys")
 
     # Generate 10,000 keys with sequential channel IDs (1-10,000)
     for channel_id in range(1, 10008):
         channel_key = secrets.token_bytes(16)
         secrets_dict["channel_keys"][channel_id] = channel_key.hex()
-        logger.debug(f"Generated key for channel {channel_id}: {channel_key.hex()}")
+        #loggger.debug(f"Generated key for channel {channel_id}: {channel_key.hex()}")
 
     # Generate extra secret_key
     secret_key = secrets.token_bytes(16)
     secrets_dict["secret_key"] = secret_key.hex()
-    logger.debug(f"Generated extra key (secret_key): {secret_key.hex()}")
+    #loggger.debug(f"Generated extra key (secret_key): {secret_key.hex()}")
 
     return json.dumps(secrets_dict).encode()
 
 
 
-# def generate_secrets_header(secrets_file: Path, header_file: Path):
-#     """Generate the `secrets.h` header file from the secrets JSON file.
-
-#     :param secrets_file: Path to the generated secrets JSON file.
-#     :param header_file: Path to the output header file.
-#     """
-#     try:
-#         # Read secrets JSON file
-#         with open(secrets_file, "r") as f:
-#             secrets = json.load(f)
-
-#         # Extract keys
-#         channel_keys = secrets.get("channel_keys", {})
-#         secret_key = secrets.get("secret_key", "")
-
-#         if not channel_keys or not secret_key:
-#             logger.error("Error: Missing required keys in secrets file.")
-#             return
-
-#         # Convert keys to C-style array format
-#         channel_keys_c = {
-#             channel: ", ".join(f"0x{b:02X}" for b in bytes.fromhex(key))
-#             for channel, key in channel_keys.items()
-#         }
-
-#         secret_key_hex = ", ".join(f"0x{b:02X}" for b in bytes.fromhex(secret_key))
-
-#         # Ensure the output directory exists
-#         header_file.parent.mkdir(parents=True, exist_ok=True)
-
-#         # Write to `secrets.h`
-#         with open(header_file, "w") as f:
-#             f.write("#ifndef SECRETS_H\n")
-#             f.write("#define SECRETS_H\n\n")
-#             f.write("#include <stdint.h>\n\n")
-
-#             # Write the channel keys
-#             for channel, key_hex in channel_keys_c.items():
-#                 f.write(f"static const uint8_t channel_{channel}_key[16] = {{ {key_hex} }};\n")
-
-#             # Write the extra secret_key
-#             f.write(f"\nstatic const uint8_t secret_key[16] = {{ {secret_key_hex} }};\n\n")
-
-#             f.write("#endif // SECRETS_H\n")
-
-#         logger.success(f"Generated {header_file}")
-
-#     except Exception as e:
-#         logger.error(f"Failed to generate secrets.h: {e}")
 
 
 def generate_secrets_header(secrets_file: Path, header_file: Path):
@@ -135,7 +86,7 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
         secret_key = secrets.get("secret_key", "")
 
         if not channel_keys or not secret_key:
-            logger.error("Error: Missing required keys in secrets file.")
+            #loggger.error("Error: Missing required keys in secrets file.")
             return
 
         # Convert all channel keys to C-style array format
@@ -167,7 +118,7 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
 
             f.write("#endif // SECRETS_H\n")
 
-        logger.success(f"Generated {header_file}")
+        #logger.success(f"Generated {header_file}")
 
     except Exception as e:
         logger.error(f"Failed to generate secrets.h: {e}")
@@ -210,13 +161,13 @@ def main():
     secrets = gen_secrets(args.channels)
 
     # Print the generated secrets for debugging
-    logger.debug(f"Generated secrets: {secrets}")
+    #loggger.debug(f"Generated secrets: {secrets}")
 
     # Write secrets to file
     with open(args.secrets_file, "wb" if args.force else "xb") as f:
         f.write(secrets)
 
-    logger.success(f"Wrote secrets to {str(args.secrets_file.absolute())}")
+    #loggger.success(f"Wrote secrets to {str(args.secrets_file.absolute())}")
 
     # Generate the `secrets.h` file in `decoder/inc/`
     secrets_header_path = Path("./decoder/inc/secrets.h")
