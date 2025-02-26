@@ -186,11 +186,16 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
  *  @return 0 if successful.
 */
 int list_channels() {
+
+    // Buffer to hold the response packet
     list_response_t resp;
+
+    // Length of the response packet
     pkt_len_t len;
 
     resp.n_channels = 0;
 
+    // Iterate through the subscribed channels and add them to the response packet
     for (uint32_t i = 0; i < MAX_CHANNEL_COUNT; i++) {
         if (decoder_status.subscribed_channels[i].active) {
             resp.channel_info[resp.n_channels].channel =  decoder_status.subscribed_channels[i].id;
@@ -200,6 +205,7 @@ int list_channels() {
         }
     }
 
+    // Calculate the length of the response packet
     len = sizeof(resp.n_channels) + (sizeof(channel_info_t) * resp.n_channels);
 
     // Success message
@@ -223,14 +229,18 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     //TODO: Decrypt update packet. 
     // Padding: Make sure its divisible by 16
     //uint8_t decrypted_update[pkt_len];
-    uint8_t decrypted_update[sizeof(subscription_update_packet_t)];  
+
+    // Buffer to hold the decrypted packet data
+    uint8_t decrypted_update[sizeof(subscription_update_packet_t)];
     char debug_buf[100];
 
+    // Log the received packet length and check if it is a multiple of 16
     sprintf(debug_buf, "Received Packet Length: %d (Should be multiple of 16)", pkt_len);
     //print_debug(debug_buf);
 
-
+    // Decrypt the incoming packet with error handling
     int check = decrypt_sym(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
+
     if(check == 0){
         //print_debug("Decryption Success! -> update_subscriptions()");
     }else if(check == -1){
@@ -240,13 +250,19 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
         print_error("Decryption Failed! Invalid subscription update.");
         return -1;
     }
+
+    // Trim the decrypted packet to the expected size
     uint8_t trimmed_message[sizeof(subscription_update_packet_t)];
     memcpy(trimmed_message, decrypted_update, sizeof(subscription_update_packet_t));
+
+    // Cast the trimmed message
     subscription_update_packet_t *safe_update = (subscription_update_packet_t *)trimmed_message;
 
     // sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
     // print_debug(debug_buf);
         // DEBUG: Check struct field values
+
+    // Print the decoded subscription
     sprintf(debug_buf, "Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", 
             safe_update->decoder_id, safe_update->start_timestamp, safe_update->end_timestamp, safe_update->channel);
     print_debug(debug_buf);
@@ -256,12 +272,13 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
 
     
 
-        //Check if the received structure size matches expected size
+    // Check if the received structure size matches expected size
     sprintf(debug_buf, "Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
     print_debug(debug_buf);
 
     int i;
 
+    // Check if the channel is the emergency channel
     if (safe_update->channel == EMERGENCY_CHANNEL) {
         STATUS_LED_RED();
         print_error("Failed to update subscription - cannot subscribe to emergency channel\n");
@@ -271,6 +288,8 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     // Find the first empty slot in the subscription array
     for (i = 0; i < MAX_CHANNEL_COUNT; i++) {
         if (decoder_status.subscribed_channels[i].id == safe_update->channel || !decoder_status.subscribed_channels[i].active) {
+
+            // Update the subscription with new information
             decoder_status.subscribed_channels[i].active = true;
             decoder_status.subscribed_channels[i].id = safe_update->channel;
             decoder_status.subscribed_channels[i].start_timestamp = safe_update->start_timestamp;
@@ -279,15 +298,17 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
         }
     }
 
-    // If we do not have any room for more subscriptions
+    // Checks if the decoder has reached the maximum number of subscriptions
     if (i == MAX_CHANNEL_COUNT) {
         STATUS_LED_RED();
         print_error("Failed to update subscription - max subscriptions installed\n");
         return -1;
     }
 
+    // Write the updated subscription data to flash memory
     flash_simple_erase_page(FLASH_STATUS_ADDR);
     flash_simple_write(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
+
     // Success message with an empty body
     write_packet(SUBSCRIBE_MSG, NULL, 0);
     return 0;
