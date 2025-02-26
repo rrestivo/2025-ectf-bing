@@ -135,7 +135,7 @@ static timestamp_t last_timestamps[MAX_CHANNEL_COUNT] = {0};
 /** @brief Checks whether the decoder is subscribed to a given channel
  *
  *  @param channel The channel number to be checked.
- *  @return 0 if emergency channel. key index 1-8 if subscribed channel. -1 if not subscribed.
+ *  @return 0 if emergency channel. returns 1 if subscribed channel. -1 if not subscribed.
 */
 int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     // Check if this is an emergency broadcast message
@@ -167,7 +167,7 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
             char debug_buf[100];
             sprintf(debug_buf, "is subscribe returns -> using key %d\n", i+1);
             print_debug(debug_buf);
-            return (i+1);   //return key number to be used
+            return 1;   //return key number to be used
         }
     }
     return -1;
@@ -227,7 +227,7 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     print_debug(debug_buf);
 
 
-    int check  = decrypt_sym(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
+    int check = decrypt_sym(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
     if(check == 0){
         print_debug("Decryption Success! -> update_subscriptions()");
     }else if(check == -1){
@@ -375,15 +375,13 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     /*
     -1 -> received unsiubscribed channel data
     0 -> channel 0
-    1-8 -> use that key for decrypt 
+    1 -> use that key (channel % 10007)
     */
     int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
-    if ((subscribe_ret > 0) && (subscribe_ret <= 8)) {
-        print_debug("------ Subscribed Channel using key 1-8 ------");
-        print_hex_debug((uint8_t*)channel_keys[subscribe_ret-1].key, 16);
-        print_debug("index of key -1");
-        print_hex_debug((uint8_t*)channel_keys[subscribe_ret].key, 16);
-        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)channel_keys[subscribe_ret].key, decrypted_message) != 0) {
+    if (subscribe_ret == 1) {
+        print_debug("------ Subscribed Channel using channel_id mod 10007 ------");
+        print_hex_debug((uint8_t*)all_channel_keys[(int)decrypted_packet->channel-1], 16);
+        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)all_channel_keys[(int)decrypted_packet->channel-1], decrypted_message) != 0) {
             print_debug("Failed to decrypt message");
             return -1;
         }
