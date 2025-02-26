@@ -226,9 +226,6 @@ int list_channels() {
  *  @return 0 upon success.  -1 if error.
 */
 int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
-    //TODO: Decrypt update packet. 
-    // Padding: Make sure its divisible by 16
-    //uint8_t decrypted_update[pkt_len];
 
     // Buffer to hold the decrypted packet data
     uint8_t decrypted_update[sizeof(subscription_update_packet_t)];
@@ -236,13 +233,12 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
 
     // Log the received packet length and check if it is a multiple of 16
     sprintf(debug_buf, "Received Packet Length: %d (Should be multiple of 16)", pkt_len);
-    //print_debug(debug_buf);
 
     // Decrypt the incoming packet with error handling
     int check = decrypt_sym(update, pkt_len, (uint8_t*)secret_key, decrypted_update);
 
     if(check == 0){
-        //print_debug("Decryption Success! -> update_subscriptions()");
+        
     }else if(check == -1){
         print_error("Decrypt failed size mismatch!");
     } 
@@ -258,19 +254,10 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     // Cast the trimmed message
     subscription_update_packet_t *safe_update = (subscription_update_packet_t *)trimmed_message;
 
-    // sprintf(debug_buf, "channel ->  %i timestamp -> %llu", safe_update->channel, safe_update->start_timestamp);
-    // print_debug(debug_buf);
-        // DEBUG: Check struct field values
-
     // Print the decoded subscription
     sprintf(debug_buf, "Decoded Subscription - Device ID: %u, Start: %llu, End: %llu, Channel: %u", 
             safe_update->decoder_id, safe_update->start_timestamp, safe_update->end_timestamp, safe_update->channel);
     print_debug(debug_buf);
-
-
-
-
-    
 
     // Check if the received structure size matches expected size
     sprintf(debug_buf, "Struct Size Check - Expected: %lu, Received: %d", sizeof(subscription_update_packet_t), pkt_len);
