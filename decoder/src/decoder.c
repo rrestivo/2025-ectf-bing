@@ -402,10 +402,6 @@ void init() {
     // Read starting flash values into our flash status struct
     flash_simple_read(FLASH_STATUS_ADDR, &decoder_status, sizeof(flash_entry_t));
     
-    
-    // char debug_buf[100];
-    // sprintf(debug_buf, "Decoder ID: %s", DECODER_ID);
-    // print_debug(debug_buf);
 
 
     if (decoder_status.first_boot != FLASH_FIRST_BOOT) {
@@ -413,8 +409,6 @@ void init() {
         *  This data will be persistent across reboots of the decoder. Whenever the decoder
         *  processes a subscription update, this data will be updated.
         */
-        // print_debug("First boot.  Setting flash...\n");
-
         decoder_status.first_boot = FLASH_FIRST_BOOT;
 
         channel_status_t subscription[MAX_CHANNEL_COUNT];
