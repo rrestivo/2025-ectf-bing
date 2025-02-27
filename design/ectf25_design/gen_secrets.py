@@ -102,7 +102,7 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
         with open(header_file, "w") as f:
             f.write("#ifndef SECRETS_H\n")
             f.write("#define SECRETS_H\n\n")
-            f.write("#include <stdint.h>\n\n")
+            #f.write("#include <stdint.h>\n\n")
 
             # Write all channel keys as a single 2D array
             f.write("static const uint8_t all_channel_keys[10007][16] = {\n")
@@ -186,7 +186,8 @@ def main():
     logger.success(f"Wrote secrets to {str(args.secrets_file.absolute())}")
 
     # Generate the `secrets.h` file in `decoder/inc/`
-    secrets_header_path = Path("./decoder/inc/secrets.h")
+    #secrets_header_path = Path("./decoder/inc/secrets.h")
+    secrets_header_path = Path("./global.secrets")
     generate_secrets_header(args.secrets_file, secrets_header_path)
 
 
