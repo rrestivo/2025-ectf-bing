@@ -35,7 +35,7 @@ def parse_secrets_file(secrets_path):
     for index, key_string in enumerate(channel_keys_match):
         # Remove extra spaces and split by ","
         key_bytes = bytes(int(b, 16) for b in key_string.replace(" ", "").split(","))
-        secrets_dict["channel_keys"][index + 1] = key_bytes  # Channels start from 1
+        secrets_dict["channel_keys"][index] = key_bytes  # Channels start from 1
 
     # Extract the master secret key
     secret_key_match = re.search(
@@ -133,15 +133,11 @@ class Encoder:
 
         effective_channel = channel % 100
 
-        if effective_channel == 0:
+        if channel == 0:
             channel_key = self.secret_key
         else:
-            if effective_channel not in self.channel_keys:
-                raise ValueError(
-                    f"No key found for effective channel {effective_channel}"
-                )
             channel_key = self.channel_keys[effective_channel]
-
+        print(f"USING CHANNEL KEY {channel_key.hex()}")
         frame_size = len(frame)
 
         # Pad the frame to a multiple of 16 bytes
