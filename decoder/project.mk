@@ -21,6 +21,7 @@ MFLOAT_ABI=soft
 IPATH+=../deployment
 IPATH+=inc/
 IPATH+=/secrets
+IPATH+=decoder/inc/
 IPATH+=/
 VPATH+=src/
 
