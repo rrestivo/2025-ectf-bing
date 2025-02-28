@@ -352,7 +352,7 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
     // Subscribed Channel
     if (subscribe_ret == 1) {
-        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)all_channel_keys[(int)decrypted_packet->channel-1], decrypted_message) != 0) {
+        if (decrypt_sym(trimmed_encrypted_data, padded_data_size, (uint8_t*)channel_keys[(int)decrypted_packet->channel-1], decrypted_message) != 0) {
             print_error("Failed to decrypt frame");
             return -1; // decryption failed
         }
