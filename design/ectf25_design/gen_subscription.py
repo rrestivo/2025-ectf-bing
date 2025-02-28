@@ -18,25 +18,35 @@ from loguru import logger
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
-def load_secrets(secrets_path: str) -> bytes:
-    """Load the encryption key from the secrets file (`global.secrets` in C header format).
+def load_secrets(secrets_path)->bytes:
+    """Parses the `global.secrets` file (C header format) and extracts encryption keys.
 
     Args:
-        secrets_path (str): Path to the secrets file.
+        secrets_path (str): Path to the `global.secrets` file.
 
     Returns:
-        bytes: The master secret AES key.
+        dict: Dictionary with `channel_keys` (dict of channel IDs to AES keys) and `secret_key` (bytes).
+
+    Raises:
+        ValueError: If the `secret_key` or `channel_keys` cannot be extracted.
     """
+
     with open(secrets_path, "r") as f:
         content = f.read()
 
     # Extract the master secret key
-    secret_key_match = re.search(r"static const uint8_t secret_key\[16\] = \{\s*((?:0x[0-9A-Fa-f]+,\s*){15}0x[0-9A-Fa-f]+)\s*\}", content)
+    secret_key_match = re.search(
+        r"static const uint8_t secret_key\[16\] = \{\s*((?:0x[0-9A-Fa-f]+,\s*){15}0x[0-9A-Fa-f]+)\s*\}", 
+        content
+    )
+
     if not secret_key_match:
         raise ValueError("Error: Unable to extract secret_key from secrets file.")
 
-    key_string = secret_key_match.group(1)
-    return bytes(int(b, 16) for b in key_string.replace(" ", "").split(","))
+    secret_key = secret_key_match.group(1)
+    secret_key = bytes(int(b, 16) for b in secret_key.replace(" ", "").split(","))
+    
+    return secret_key
 
 def encrypt_data(key: bytes, data: bytes) -> bytes:
     """Encrypt data using AES-128 in ECB mode."""
