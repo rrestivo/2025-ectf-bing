@@ -131,13 +131,12 @@ class Encoder:
         if len(frame) > 64:
             raise ValueError("Frame size must not exceed 64 bytes.")
 
-        effective_channel = channel % 100
+        effective_channel = channel % 10007
 
         if channel == 0:
             channel_key = self.secret_key
         else:
             channel_key = self.channel_keys[effective_channel]
-        print(f"USING CHANNEL KEY {channel_key.hex()}")
         frame_size = len(frame)
 
         # Pad the frame to a multiple of 16 bytes

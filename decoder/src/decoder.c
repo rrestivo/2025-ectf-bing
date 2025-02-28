@@ -352,13 +352,8 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
     // Subscribed Channel
     if (subscribe_ret == 1) {
-        int channel_index = ((decrypted_packet->channel) % 100);
-        char debug_buf[100];
-        sprintf(debug_buf, " CHANNAL INDEX = %d  ", channel_index);
-        print_debug(debug_buf);
-        uint8_t *second_key = (uint8_t*)channel_keys[((decrypted_packet->channel) % 100)];
-        print_debug("CHANNEL KEY");
-        print_hex_debug(second_key, 16);
+        int channel_index = ((decrypted_packet->channel) % 10007);
+        uint8_t *second_key = (uint8_t*)channel_keys[((decrypted_packet->channel) % 10007)];
         if (decrypt_sym(trimmed_encrypted_data, padded_data_size, second_key, decrypted_message) != 0) {
             print_error("Failed to decrypt frame");
             return -1; // decryption failed

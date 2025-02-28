@@ -37,7 +37,7 @@ def gen_secrets(channels: list[int]) -> bytes:
     # You can change this to generate any secret material
     # The secrets file will never be shared with attackers
     secrets_dict = {"channels": channels, "channel_keys": {}}
-    for channel_id in range(1, 110):  # Assuming you need 10,007 keys
+    for channel_id in range(0, 10007):  # Assuming you need 10,007 keys
         channel_key = secrets.token_bytes(16)
         secrets_dict["channel_keys"][channel_id] = channel_key.hex()
         secret_key = secrets.token_bytes(16).hex()
@@ -51,7 +51,7 @@ def gen_secrets(channels: list[int]) -> bytes:
     
     secret =  "#ifndef SECRETS_H\n"
     secret += "#define SECRETS_H\n\n"
-    secret += "static const uint8_t channel_keys[110][16] = {\n"
+    secret += "static const uint8_t channel_keys[10007][16] = {\n"
     secret += ',\n'.join(f"    {key}" for key in all_keys_c) + "\n};\n\n"
     secret += "static const uint8_t secret_key[16] = {"
     secret += secret_key_hex
