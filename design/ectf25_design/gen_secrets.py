@@ -61,9 +61,9 @@ def save_secrets_file(file_path: Path, content: str):
         content (str): C header content to write.
     """
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(file_path, "w") as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write(content)
-    logger.success(f"Generated {file_path}")
+    print(f"Generated {file_path}")
 
 
 def parse_args():
@@ -104,6 +104,12 @@ def main():
     # Save to `global.secrets` (Same C format as `secrets.h`)
     global_secrets_path = Path("./global.secrets")
     save_secrets_file(global_secrets_path, secrets_content)
+
+    # Write to the file specified in args.secrets_file
+    with open(args.secrets_file, "wb") as out_file:
+        out_file.write(secrets_content.encode("utf-8"))
+
+    print(f"Generated {args.secrets_file}")
 
 
 if __name__ == "__main__":
