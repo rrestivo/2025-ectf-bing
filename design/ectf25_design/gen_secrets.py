@@ -43,7 +43,7 @@ def gen_secrets(channels: list[int]) -> bytes:
 
     # Generate 10,008 keys with sequential channel IDs (1-10,007)
     
-    for channel_id in range(1, 10008):
+    for channel_id in range(1, 100):
         channel_key = secrets.token_bytes(16)  # Generate a 128-bit key
         secrets_dict["channel_keys"][channel_id] = channel_key.hex()  # Store as hex string
 
@@ -105,7 +105,7 @@ def generate_secrets_header(secrets_file: Path, header_file: Path):
             #f.write("#include <stdint.h>\n\n")
 
             # Write all channel keys as a single 2D array
-            f.write("static const uint8_t all_channel_keys[10007][16] = {\n")
+            f.write("static const uint8_t all_channel_keys[100][16] = {\n")
             for row in all_keys_c:
                 f.write(f"    {row},\n")
             f.write("};\n\n")

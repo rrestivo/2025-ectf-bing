@@ -11,17 +11,32 @@ Copyright: Copyright (c) 2025 The MITRE Corporation
 """
 
 import argparse
-import json
 import struct
+import re
 from pathlib import Path
 from loguru import logger
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 
-def load_secrets(secrets: bytes) -> bytes:
-    """Load encryption key from the secrets JSON."""
-    secrets_dict = json.loads(secrets)
-    return bytes.fromhex(secrets_dict["secret_key"])
+def load_secrets(secrets_path: str) -> bytes:
+    """Load the encryption key from the secrets file (`global.secrets` in C header format).
+
+    Args:
+        secrets_path (str): Path to the secrets file.
+
+    Returns:
+        bytes: The master secret AES key.
+    """
+    with open(secrets_path, "r") as f:
+        content = f.read()
+
+    # Extract the master secret key
+    secret_key_match = re.search(r"static const uint8_t secret_key\[16\] = \{\s*((?:0x[0-9A-Fa-f]+,\s*){15}0x[0-9A-Fa-f]+)\s*\}", content)
+    if not secret_key_match:
+        raise ValueError("Error: Unable to extract secret_key from secrets file.")
+
+    key_string = secret_key_match.group(1)
+    return bytes(int(b, 16) for b in key_string.replace(" ", "").split(","))
 
 def encrypt_data(key: bytes, data: bytes) -> bytes:
     """Encrypt data using AES-128 in ECB mode."""
@@ -34,9 +49,9 @@ def add_padding(data: bytes) -> bytes:
     padding_length = 16 - (len(data) % 16)
     return data + (b'\x00' * padding_length)
 
-def gen_subscription(secrets: bytes, device_id: int, start: int, end: int, channel: int) -> bytes:
+def gen_subscription(secrets_path: str, device_id: int, start: int, end: int, channel: int) -> bytes:
     """Generate and encrypt a subscription packet."""
-    key = load_secrets(secrets)
+    key = load_secrets(secrets_path)
     packet = struct.pack("<IQQI", device_id, start, end, channel)
     packet = add_padding(packet)
     return encrypt_data(key, packet)
@@ -45,7 +60,7 @@ def parse_args():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--force", "-f", action="store_true", help="Force creation of subscription file, overwriting existing file")
-    parser.add_argument("secrets_file", type=argparse.FileType("rb"), help="Path to the secrets file created by ectf25_design.gen_secrets")
+    parser.add_argument("secrets_file", type=str, help="Path to the secrets file (global.secrets)")
     parser.add_argument("subscription_file", type=Path, help="Output file for the encrypted subscription")
     parser.add_argument("device_id", type=lambda x: int(x, 0), help="Device ID of the update recipient.")
     parser.add_argument("start", type=lambda x: int(x, 0), help="Subscription start timestamp")
@@ -56,7 +71,7 @@ def parse_args():
 def main():
     """Main function to generate encrypted subscription files."""
     args = parse_args()
-    subscription = gen_subscription(args.secrets_file.read(), args.device_id, args.start, args.end, args.channel)
+    subscription = gen_subscription(args.secrets_file, args.device_id, args.start, args.end, args.channel)
     with open(args.subscription_file, "wb" if args.force else "xb") as f:
         f.write(subscription)
     logger.success(f"Subscription written to {str(args.subscription_file.absolute())}")
