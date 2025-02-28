@@ -131,13 +131,16 @@ class Encoder:
         if len(frame) > 64:
             raise ValueError("Frame size must not exceed 64 bytes.")
 
+        frame_size = len(frame)
+  
         effective_channel = channel % 10007
-
+        # if channel is emergency channel use secret_key
         if channel == 0:
             channel_key = self.secret_key
+        # otherwise use respective key (channel % 10007)
         else:
             channel_key = self.channel_keys[effective_channel]
-        frame_size = len(frame)
+            
 
         # Pad the frame to a multiple of 16 bytes
         if frame_size % 16 != 0:

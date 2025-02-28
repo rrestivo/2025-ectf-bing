@@ -158,7 +158,7 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
             decoder_status.subscribed_channels[i].active &&
             timestamp >= start && timestamp <= end) {
 
-            // **Monotonic timestamp enforcement (only in RAM)**
+            // Monotonic timestamp enforcement (only in RAM)
             if (timestamp <= last_timestamps) {
                 STATUS_LED_RED();
                 return -1; // Reject frame due to non-monotonic timestamp
@@ -302,10 +302,8 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
         return -1;
     }
     
-    // Add a short randomized delay before decryption
+    // Add a short randomized delay
     uint32_t rand_delay = MXC_TRNG_RandomInt() % 1000; // Random delay up to 999 microseconds
-    
-    //MXC_TMR_Delay(rand_delay);
     int delay_count = 0;
     while(delay_count != rand_delay){
         int waste = 0;
@@ -352,7 +350,6 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
     int subscribe_ret = is_subscribed(decrypted_packet->channel, decrypted_packet->timestamp);
     // Subscribed Channel
     if (subscribe_ret == 1) {
-        int channel_index = ((decrypted_packet->channel) % 10007);
         uint8_t *second_key = (uint8_t*)channel_keys[((decrypted_packet->channel) % 10007)];
         if (decrypt_sym(trimmed_encrypted_data, padded_data_size, second_key, decrypted_message) != 0) {
             print_error("Failed to decrypt frame");
@@ -391,8 +388,6 @@ int decode(pkt_len_t pkt_len, uint8_t *new_frame) {
 
 
 
-
-// TODO: remove all debug ports and all other security concerns!
 /** @brief Initializes peripherals for system boot.
 */
 void init() {
