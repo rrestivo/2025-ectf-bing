@@ -2,7 +2,7 @@
 
 This repository holds the final design of Binghamton University's eCTF Satellite TV System. 
 
-The Reference Design was modified to add additional security protections. Namely, 2-layer AES-128 encryption & decryption of frames, encryption of subscription data, and timing delays. For more information, please the included pdf & diagrams for more information. 
+The Reference Design was modified to add additional security protections. Namely, 2-layer AES-128 encryption & decryption of frames, encryption of subscription data, and timing delays. For more information, please the included pdf for more information. 
 
 ## BingahmtonCTF
 
