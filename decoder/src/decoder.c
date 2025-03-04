@@ -131,6 +131,7 @@ flash_entry_t decoder_status;
 
 // global array to track the last processed timestamp per channel
 static timestamp_t last_timestamps;
+static bool timestamp_init;
 
 /**********************************************************
  ******************* UTILITY FUNCTIONS ********************
@@ -144,9 +145,14 @@ static timestamp_t last_timestamps;
 int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     // Check if this is an emergency broadcast message
     if (channel == EMERGENCY_CHANNEL) {
-        if(timestamp <= last_timestamps){
-            print_error("ERROR: timestamp less than or equal to last timestamp");
-            return -1;
+        if(timestamp_init == TRUE){
+            if(timestamp <= last_timestamps){
+                print_error("ERROR: timestamp less than or equal to last timestamp");
+                return -1;
+            }
+        }
+        else{
+            timestamp_init = TRUE;
         }
         last_timestamps = timestamp;
         return 0;
@@ -164,12 +170,17 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
             timestamp >= start && timestamp <= end) {
 
             // Monotonic timestamp enforcement (only in RAM)
-            if (timestamp <= last_timestamps) {
-                STATUS_LED_RED();
-                print_error("timestamps not increasing");
-                return -1; // Reject frame due to non-monotonic timestamp
+            if(timestamp_init == TRUE){
+                if (timestamp <= last_timestamps) {
+                    STATUS_LED_RED();
+                    print_error("timestamps not increasing");
+                    return -1; // Reject frame due to non-monotonic timestamp
+                }
             }
-
+            // prevents case where timestamp 0 is first timestamp
+            else{
+                timestamp_init = TRUE;
+            }
             // Update last processed timestamp (stored in RAM only)
             last_timestamps = timestamp;
             return 1;
@@ -440,6 +451,7 @@ void init() {
     }
     // sets last timestamp back to zero when power cycles
     last_timestamps = 0;
+    timestamp_init = FALSE;
     /* Peripherial Initilization Here */
 
     // initilizes true random number generator
