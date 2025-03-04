@@ -253,6 +253,7 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     //make sure timestamp ranges are valid
     if(safe_update->decoder_id != DECODER_ID){
         print_error("Incorrect Decoder ID");
+        return -1;
     }
     // Find the first empty slot in the subscription array
     for (i = 0; i < MAX_CHANNEL_COUNT; i++) {
