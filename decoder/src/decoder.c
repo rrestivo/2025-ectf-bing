@@ -144,6 +144,11 @@ static timestamp_t last_timestamps;
 int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
     // Check if this is an emergency broadcast message
     if (channel == EMERGENCY_CHANNEL) {
+        if(timestamp <= last_timestamps){
+            print_error("ERROR: timestamp less than or equal to last timestamp");
+            return -1;
+        }
+        last_timestamps = timestamp;
         return 0;
     }
     
@@ -161,6 +166,7 @@ int is_subscribed(channel_id_t channel, timestamp_t timestamp) {
             // Monotonic timestamp enforcement (only in RAM)
             if (timestamp <= last_timestamps) {
                 STATUS_LED_RED();
+                print_error("timestamps not increasing");
                 return -1; // Reject frame due to non-monotonic timestamp
             }
 
@@ -246,7 +252,7 @@ int update_subscription(pkt_len_t pkt_len, uint8_t *update) {
     }
 
     if(safe_update->start_timestamp > safe_update->end_timestamp){
-        print_error("timestamp start must be less than timestamp end");
+        print_error("timestamp start must be less than or equal to timestamp end");
         return -1;
     }
     //TODO check decoder ID -> stored decoder id on board 
